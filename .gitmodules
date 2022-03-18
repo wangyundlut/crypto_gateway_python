@@ -1,0 +1,3 @@
+[submodule "crypto_rest"]
+	path = crypto_rest
+	url = git@github.com:wangyundlut/crypto_rest.git
