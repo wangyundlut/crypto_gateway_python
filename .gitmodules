@@ -1,4 +1,0 @@
-
-[submodule "crypto_rest_python"]
-	path = crypto_rest_python
-	url = git@github.com:wangyundlut/crypto_rest_python.git
