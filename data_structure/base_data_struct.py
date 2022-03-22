@@ -5,26 +5,26 @@ All letter should be lower.
 For compare.
 """
 
-from ctypes.wintypes import SIZE
 from dataclasses import dataclass, field
 import time
 from decimal import Decimal
 
-@dataclass
-class instTypeData:
-    SPOT = "spot"
-    MARGINCROSS = "margin_cross" 
-    MARGINISOLATED = "margin_isolated"
-    FUTURES = "futures"
-    SWAP = "swap"
+"""
+orderStateData, orderSendStateData, orderTypeData, orderSideData
+instTypeData, contractTypeData, instInfoData, depthData, tradeData, klineData
+accountData, orderData, positionData, fillData, orderChannelData, wsInfoData, 
+orderSendData, cancelOrderSendData, amendOrderSendData, orderErrorCodeMsgData
+"""
+
 
 @dataclass
 class orderStateData:
-    SUBMITTING = "submitting"
-    SUBMITTED = "submitted"
-    PARTIALFILLED = "partial_filled"
+    CREATED = "created" # not in exchange queue, but readly
+    SUBMITTED = "submitted" # in exchange queue
+    PARTIALFILLED = "partial-filled"
     FILLED = "filled"
-    CANCELLING = "canceling"
+    PARTIALCANCELED = "partial-canceled" # partial-filled then cancel rest
+    CANCELLING = "canceling" # in exchange, ready to quit
     CANCELED = "canceled"
 
 @dataclass
@@ -53,9 +53,17 @@ class orderSideData:
     SELL = "sell"
 
 @dataclass
+class instTypeData:
+    SPOT = "spot"
+    MARGINCROSS = "margin_cross"
+    MARGINISOLATED = "margin_isolated"
+    FUTURES = "futures"
+    SWAP = "swap"
+
+@dataclass
 class contractTypeData:
-    COIN = "coin"
-    USD = "usd"
+    COIN = "coin" # buy/sell contract means buy/sell coin
+    USD = "usd" # buy/sell contract means buy/sell usd
     
 @dataclass
 class instInfoData:
@@ -74,6 +82,12 @@ class instInfoData:
     con_val: Decimal = 0 # contract value, 1 for how many contract value ccy
     con_val_ccy: str = "" # contract value cct, usd or coin, 
     # inst_type + con_type:  swap, coin.. swap usd..
+
+@dataclass
+class accountChangeTypeData:
+    ORDERPLACE: str = "order-place"
+    ORDERMATCH: str = "order-match"
+
 
 ################# market data #################
 @dataclass
@@ -96,23 +110,6 @@ class depthData:
     asks_list: list = field(default_factory=list) # [[p1, sz1], [p2, sz2]] ask1, ask2, ask3
     bids_list: list = field(default_factory=list) # [[p1, sz1], [p2, sz2]] bid1, bid2, bid3
 
-    def change_sz_to_coin(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.COIN:
-                return sz * info.con_val
-        elif info.inst_type in [instTypeData.SPOT, instTypeData.MARGIN, instTypeData.MARGINISOLATED]:
-            return sz
-            
-        print(f"can not change to sz")
-
-    def change_sz_to_usd(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.USD:
-                return sz * info.con_val 
-        print(f"can not change to usd")
-
-
-
 @dataclass
 class tradeData: # this is market trade data, not order->trade data, that is fill data
     gateway_name : str = "" # sender, okx_market
@@ -126,23 +123,6 @@ class tradeData: # this is market trade data, not order->trade data, that is fil
     side: str = ""
     px: Decimal = 0
     sz: Decimal = 0
-
-    def change_sz_to_coin(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.COIN:
-                return sz * info.con_val
-        elif info.inst_type in [instTypeData.SPOT, instTypeData.MARGIN, instTypeData.MARGINISOLATED]:
-            return sz
-            
-        print(f"can not change to sz")
-
-    def change_sz_to_usd(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.USD:
-                return sz * info.con_val 
-        print(f"can not change to usd")
-
-    
 
 @dataclass
 class klineData:
@@ -159,21 +139,6 @@ class klineData:
     close_price: Decimal = 0
     sz: Decimal = 0
 
-    def change_sz_to_coin(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.COIN:
-                return sz * info.con_val
-        elif info.inst_type in [instTypeData.SPOT, instTypeData.MARGIN, instTypeData.MARGINISOLATED]:
-            return sz
-            
-        print(f"can not change to sz")
-
-    def change_sz_to_usd(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.USD:
-                return sz * info.con_val 
-        print(f"can not change to usd")
-
 ################# market data #################
 ###############################################
 ################# trade data #################
@@ -182,6 +147,7 @@ class accountData:
     gateway_name : str = ""
     account_name: str = ""
     exchange: str = ""
+    change_type: str = ""
     ccy: str = ""
     ccy_local: str = "" # exchange + ccy
     equity: Decimal = 0
@@ -226,21 +192,6 @@ class orderData:
     create_time_epoch: Decimal = Decimal(int(time.time() * 1000))
     create_time_china: str = ""
 
-    def change_sz_to_coin(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.COIN:
-                return sz * info.con_val
-        elif info.inst_type in [instTypeData.SPOT, instTypeData.MARGIN, instTypeData.MARGINISOLATED]:
-            return sz
-            
-        print(f"can not change to sz")
-
-    def change_sz_to_usd(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.USD:
-                return sz * info.con_val 
-        print(f"can not change to usd")
-
 
 @dataclass
 class positionData:
@@ -259,21 +210,6 @@ class positionData:
     update_time_epoch: Decimal = Decimal(int(time.time() * 1000))
     update_time_china: str = ""
 
-    def change_sz_to_coin(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.COIN:
-                return sz * info.con_val
-        elif info.inst_type in [instTypeData.SPOT, instTypeData.MARGIN, instTypeData.MARGINISOLATED]:
-            return sz
-            
-        print(f"can not change to sz")
-
-    def change_sz_to_usd(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.USD:
-                return sz * info.con_val 
-        print(f"can not change to usd")
-
 
 @dataclass
 class fillData:
@@ -283,15 +219,16 @@ class fillData:
     """
     gateway_name : str = ""
     account_name: str = ""
-    inst_id_local: str = ""
     exchange: str = ""
     inst_type: str = ""
     inst_id: str = ""
+    inst_id_local: str = ""
+    ord_type: str = ""
     side: str = ""
     ord_id: str = ""
     cl_ord_id: str = ""
-    billId: str = ""
-    tradeId: str = ""
+    bill_id: str = ""
+    trade_id: str = ""
     tag = ""
     taker_or_maker = ""
     fill_px: Decimal = 0  
@@ -303,20 +240,6 @@ class fillData:
     time_epoch: Decimal = Decimal(int(time.time() * 1000))
     time_china: str = ""
 
-    def change_sz_to_coin(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.COIN:
-                return sz * info.con_val
-        elif info.inst_type in [instTypeData.SPOT, instTypeData.MARGIN, instTypeData.MARGINISOLATED]:
-            return sz
-            
-        print(f"can not change to sz")
-
-    def change_sz_to_usd(self, sz: Decimal, info: instInfoData): # for futures and swap
-        if info.inst_type == instTypeData.FUTURES or info.inst_type == instTypeData.SWAP:
-            if info.con_type == contractTypeData.USD:
-                return sz * info.con_val 
-        print(f"can not change to usd")
 
 @dataclass
 class orderChannelData:
@@ -340,6 +263,7 @@ class wsInfoData:
     channel: str = "" # order, batch-orders, cancel-order, cancel-batch-order, amend-order, amend-batch-order
     ord_id: str = ""
     cl_ord_id: str = ""
+    ord_state: str = ""
     code: str = "" # error code
     msg: str = "" # error msg
 
@@ -348,9 +272,9 @@ class wsInfoData:
 
 @dataclass
 class orderSendData:
-
     inst_type: str = ""
     inst_id: str = ""
+    inst_id_local: str = ""
     trade_mode: str = ""
     cl_ord_id: str = ""
     side: str = ""
@@ -358,19 +282,13 @@ class orderSendData:
     px: Decimal = 0
     sz: Decimal = 0 # how many ccy, (sz=0.1, ccy=btc)  (sz=100, ccy=USD)
     ccy: str = "" 
-    # if swap or futures, no ccy, means you have changed yourself
-    # for btc-eth, suggest send sz base on btc
-    # for btc-usdt-swap, suggest send sz base on btc or contract
-    # for btc-usd-swap, suggest send sz base on usd or contract
-    def sz_change(self, info: instInfoData):
-        # change sz from ccy to exchange, 
-        # like: btc-usdt-swap ccy btc, sz 0.1, contract ccy is btc, contract sz is 0.01 this will return 0.1/0.01 = 10
-        return self.sz
+
 
 @dataclass
 class cancelOrderSendData:
     inst_type: str = ""
     inst_id: str = ""
+    inst_id_local: str = ""
     ord_id: str = ""
     cl_ord_id: str = ""
 
@@ -378,14 +296,14 @@ class cancelOrderSendData:
 class amendOrderSendData:
     inst_type: str = ""
     inst_id: str = ""
+    inst_id_local: str = ""
     ord_id: str = ""
     cl_ord_id: str = ""
     new_sz: Decimal = 0
     new_px: Decimal = 0
     ccy: str = ""
-    def sz_change(self):
-        pass
     
+
 @dataclass
 class orderErrorCodeMsgData:
     code_msg_dict = {

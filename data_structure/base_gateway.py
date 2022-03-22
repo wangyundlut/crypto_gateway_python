@@ -2,11 +2,10 @@
 """
 this is base Gateway:
 
-1 add account config file: {'exchange': 'OKX', 'apiKey': 'sfdfs', ...}
+1 add account config file: {'exchange': 'okx', 'apiKey': 'sfdfs', ...}
 2 -> load rest -> load exchange info
 3 add inst_id 
-4 add middle_engine
-5 add log(if need)
+4 add log(if need)
 
 ...
 finally, add async private in loop, run as thread safe or just run
@@ -44,8 +43,10 @@ class baseGateway:
         self.listener_order = None
         self.listener_fill = None
         self.listener_ws = None
-        
-    
+
+        self.rest = None
+        self.inst_id_info = {}
+
     ##################load rest##############################
     def add_config_account(self, config_path='/test/.yaml'):
         """
@@ -123,7 +124,27 @@ class baseGateway:
 
     async def amend_batch_order(self, amend_list: List[amendOrderSendData]):
         pass
+    
+    def send_order_rest(self, order: orderSendData):
+        """
+        rest also async, 
+        """
+        pass
 
+    def send_batch_order_rest(self, order_list: List[orderSendData]):
+        pass
+
+    def cancel_order_rest(self, cancel: cancelOrderSendData):
+        pass
+
+    def cancel_batch_orders_rest(self, cancel_list: List[cancelOrderSendData]):
+        pass
+    
+    def amend_order_rest(self, amend: amendOrderSendData):
+        pass
+
+    def amend_batch_order_rest(self, amend_list: List[amendOrderSendData]):
+        pass
 
     def get_order_info(self, ord_id="", cl_ord_id="") -> orderData:
         pass
