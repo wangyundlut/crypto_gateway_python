@@ -8,7 +8,7 @@ all dingding should bind ip
 import os
 from datetime import datetime
 from dingtalkchatbot import chatbot
-from utilities.utility_yaml import load_yaml_file
+from .utility_yaml import load_yaml_file
 
 class helper_dingding:
 

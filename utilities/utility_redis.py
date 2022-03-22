@@ -1,6 +1,6 @@
 import redis
 import os
-from utilities.utility_yaml import load_yaml_file
+from .utility_yaml import load_yaml_file
 
 
 def load_redis_connection_pool(filename='redis_local'):

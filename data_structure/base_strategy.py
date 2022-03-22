@@ -1,10 +1,10 @@
-from base_class.base_data_struct import(
+from .base_data_struct import(
     depthData,
     accountData,
     positionData,
     orderData
 )
-from base_class.base_strategy_engine import baseStrategyEngine
+from .base_strategy_engine import baseStrategyEngine
 
 class strategyTemplate(baseStrategyEngine):
     def __init__(self) -> None:

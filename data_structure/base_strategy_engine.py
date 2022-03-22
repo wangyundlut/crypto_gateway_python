@@ -1,11 +1,11 @@
-from base_class.base_data_struct import(
+from .base_data_struct import(
     depthData,
     accountData,
     positionData,
     orderData,
     fillData
 )
-from base_class.base_gateway import baseGateway
+from .base_gateway import baseGateway
 HOURS8=8
 
 class baseStrategyEngine:
