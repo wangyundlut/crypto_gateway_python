@@ -58,6 +58,8 @@ class huobiGateway:
         self.depth_dict = {} # "btcusdt": {tick}
         self.depth_increase_list = {} # "btcusdt": []}
         self.depth_seq_num = {} # "btcusdt": {tick}
+        self.market_ready = False
+        self.trade_ready = False
 
         self.order_dict: Dict[str, orderData] = {} # orderId: order, del if filled, canceled, partial-canceled
         self.account_dict: Dict[str, accountData] = {}
@@ -379,7 +381,8 @@ class huobiGateway:
         pass
     
     def get_engine_status(self):
-        pass
+
+        return self.market_ready and self.trade_ready
 
     ##################strategy engine add##############################
 
@@ -430,7 +433,6 @@ class huobiGateway:
         depth.bids_list = bids
         return depth
         
-    
     def account_trans(self, data):
         """
         middle engine's listener
@@ -460,13 +462,11 @@ class huobiGateway:
         account.update_time_china = dt_epoch_to_china_str(account.update_time_epoch)
         return account
 
-    
     def position_trans(self, position):
         """
         middle engine's listener
         """
         pass
-    
 
     def order_trans(self, data):
         """
@@ -579,8 +579,6 @@ class huobiGateway:
         fill.time_china = dt_epoch_to_china_str(fill.time_epoch)
         return fill
         
-
-
     def ws_info_trans(self, d: dict):
         ws_info = wsInfoData()
         ws_info.gateway_name = self.gateway_name
@@ -703,7 +701,8 @@ class huobiGateway:
                         res = json.loads(gzip.decompress(res_b).decode("utf-8"))
                         # self.log_record(f"increase: {res}")
                         if 'tick' in res:
-                            
+                            if not self.market_ready:
+                                self.market_ready = True
                             ch = res['ch']
                             ts = res['ts']
                             tick_symbol = ch.split(".mbp")[0].split("market.")[1]
@@ -793,7 +792,7 @@ class huobiGateway:
                     value = []
                 for key, value in self.depth_seq_num.items():
                     value = 0
-                
+                self.market_ready = False
                 self.log_record(f"coroutine_market_increase error: {e}")
                 # self.log.info(get_timestmap() + "连接断开，正在重连……" + str(e))
                 continue
@@ -830,6 +829,8 @@ class huobiGateway:
                         # self.log_record(res)
 
                         if 'tick' in res:
+                            if not self.market_ready:
+                                self.market_ready = True
                             ch = res['ch']
                             ts = res['ts']
                             tick = res['tick']
@@ -873,7 +874,7 @@ class huobiGateway:
                     value = []
                 for key, value in self.depth_seq_num.items():
                     value = 0
-
+                self.market_ready = True
                 self.log_record(f"coroutine_market_refresh error: {e}")
                 # self.log.info(get_timestmap() + "连接断开，正在重连……" + str(e))
                 continue
@@ -998,7 +999,8 @@ class huobiGateway:
                                 elif "accounts.update" in ch:
                                     if not data:
                                         continue
-
+                                    if not self.trade_ready:
+                                        self.trade_ready = True
                                     account = self.account_trans(data)
                                     # self.log_record(f"account update 2")
                                     # self.log_record(f"{account}")
@@ -1012,6 +1014,7 @@ class huobiGateway:
                                 elif str(res["code"] == "200"):
                                     self.log_record("sub topic")
                                     self.log_record(res)
+                                    
                             else:
                                 self.log_record("no prepare")
                                 self.log_record(res)
@@ -1020,7 +1023,7 @@ class huobiGateway:
                             self.log_record(res)
 
             except Exception as e:
-
+                self.trade_ready = False
                 self.log_record(str(datetime.now()) + " error: coroutine_trade 连接断开，正在重连……" + str(e))
                 
                 continue
