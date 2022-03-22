@@ -8,20 +8,20 @@ all dingding should bind ip
 import os
 from datetime import datetime
 from dingtalkchatbot import chatbot
-from utilities.utility_yaml import load_yaml_file, CONFIGBASEPATH
+from utilities.utility_yaml import load_yaml_file
 
 class helper_dingding:
 
-    def __init__(self, yaml_file='ding_ctp_rm') -> None:
+    def __init__(self, yaml_file='ding_debug') -> None:
         self.ding_yaml_file = yaml_file
         self.ding: chatbot.DingtalkChatbot = None
         self.load_ding()
     
     def load_ding(self):
         if self.ding_yaml_file[-4:] != 'yaml':
-            filepath =  os.path.join(CONFIGBASEPATH, 'utility', self.ding_yaml_file + '.yaml')
+            filepath =  os.path.join("/app/utility_config", self.ding_yaml_file + ".yml")
         else:
-            filepath =  os.path.join(CONFIGBASEPATH, 'utility', self.ding_yaml_file)
+            filepath =  os.path.join("/app/utility_config", self.ding_yaml_file + ".yml")
             
         config_file = load_yaml_file(filepath)
         ding = chatbot.DingtalkChatbot(webhook=config_file['webhook'])

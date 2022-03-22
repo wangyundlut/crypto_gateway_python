@@ -13,8 +13,8 @@ import hashlib
 import time
 from decimal import Decimal
 from typing import Dict, List 
-from base_class import base_gateway
-from base_class.base_data_struct import (
+from data_structure.base_gateway import baseGateway
+from data_structure.base_data_struct import (
     accountData,
     depthData,
     instInfoData,
@@ -30,8 +30,8 @@ from base_class.base_data_struct import (
     positionData,
     fillData,
     wsInfoData)
-from exchange_rest.huobi.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
-from exchange_rest.huobi.consts import EXCHANGE_NAME, SPOT_WEBSOCKET_TRADE_HOST, SPOT_WEBSOCKET_DATA_HOST, SPOT_WEBSOCKET_MBP_DATA_HOST
+from crypto_rest_python.huobi.sync.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
+from crypto_rest_python.huobi.sync.consts import EXCHANGE_NAME, SPOT_WEBSOCKET_TRADE_HOST, SPOT_WEBSOCKET_DATA_HOST, SPOT_WEBSOCKET_MBP_DATA_HOST
 from utilities.utility_decimal import round_to
 from utilities.utility_time import dt_epoch_to_china_str
 
