@@ -12,10 +12,10 @@ import logging
 from decimal import Decimal
 
 
-from utilities.utility_decimal import round_to
-from utilities.utility_time import dt_epoch_to_china_str
-from base_class.base_gateway import baseGateway
-from base_class.base_data_struct import(
+from crypto_gateway_python.utilities.utility_decimal import round_to
+from crypto_gateway_python.utilities.utility_time import dt_epoch_to_china_str
+from crypto_gateway_python.data_structure.base_gateway import baseGateway
+from crypto_gateway_python.data_structure.base_data_struct import(
     depthData,
     accountData,
     orderStateData,
@@ -29,7 +29,7 @@ from base_class.base_data_struct import(
     contractTypeData
 )
 
-from gateways.okx.okx_data_struct import (
+from crypto_gateway_python.data_structure.base_data_struct import (
     depthDataokx, 
     orderSendDataokx, 
     cancelOrderSendDataokx,
@@ -39,8 +39,9 @@ from gateways.okx.okx_data_struct import (
     order_state_map,
     order_state_map_reverse
     )
-from gateways.okx.okx_rest.rest_v5 import okx_api_v5
-from gateways.okx.okx_rest.consts import (
+
+from crypto_rest_python.okx.sync.rest_v5 import okx_api_v5
+from crypto_rest_python.okx.sync.consts import (
     EXCHANGE_NAME,
     WS_PRI_URL,
     WS_PRI_URL_SIMULATION,

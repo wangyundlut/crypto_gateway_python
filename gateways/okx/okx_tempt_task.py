@@ -1,5 +1,6 @@
-from gateways.okx.okx_rest.rest_v5 import okx_api_v5
-from utilities.utility_yaml import load_yaml_file
+
+from crypto_rest_python.okx.sync.rest_v5 import okx_api_v5
+from crypto_gateway_python.utilities.utility_yaml import load_yaml_file
 
 account_test_path = '/app/config/okx/simulated20210922.yaml'
 # account_test_path = '/app/config/okx/okextest20210419.yaml'

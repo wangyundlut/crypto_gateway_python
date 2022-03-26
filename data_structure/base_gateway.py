@@ -38,6 +38,7 @@ class baseGateway:
 
     def __init__(self, gateway_name='') -> None:        
         self.gateway_name = gateway_name
+        
         self.listener_depth = None
         self.listener_account = None
         self.listener_position = None
