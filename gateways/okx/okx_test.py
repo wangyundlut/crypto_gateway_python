@@ -4,6 +4,9 @@ import json
 import hmac
 import base64
 
+# okx simulate  for test
+# header['x-simulated-trading'] = '1'
+# don't worry push it public
 apiKey = "606c2656-fbfe-4e6b-a259-7c6ecb9c6863"
 secretKey = "1BE2E53229A31B8F9409496C72F5D853"
 passPhrase = "vVWLhZMDBqpV2YG3"
