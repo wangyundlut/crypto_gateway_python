@@ -62,8 +62,8 @@ class instTypeData:
 
 @dataclass
 class contractTypeData:
-    COIN = "coin" # buy/sell contract means buy/sell coin
-    USD = "usd" # buy/sell contract means buy/sell usd
+    COIN = "coin" # buy/sell contract means buy/sell coin, means btc-usdt-swap
+    USD = "usd" # buy/sell contract means buy/sell usd, means btc-usd-swap
     
 @dataclass
 class instInfoData:
@@ -304,13 +304,6 @@ class amendOrderSendData:
     ccy: str = ""
     
 
-@dataclass
-class orderErrorCodeMsgData:
-    code_msg_dict = {
-        "51008": "Order placement failed due to insufficient balance",
-        "51020": "Order amount should be greater than the min available amount.",
-        "51121": "Order count should be the integer multiples of the lot size",
-    }
     
 
 
