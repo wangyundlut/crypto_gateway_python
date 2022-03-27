@@ -99,4 +99,4 @@ try:
     
 
 except ValueError:
-    raise Exception(response)
+    raise Exception(response.json())

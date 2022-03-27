@@ -18,6 +18,7 @@ from crypto_gateway_python.data_structure.base_gateway import baseGateway
 from crypto_gateway_python.data_structure.base_data_struct import(
     depthData,
     accountData,
+    fillData,
     orderStateData,
     positionData,
     orderData,
@@ -30,14 +31,10 @@ from crypto_gateway_python.data_structure.base_data_struct import(
 )
 
 from crypto_gateway_python.data_structure.base_data_struct import (
-    depthDataokx, 
-    orderSendDataokx, 
-    cancelOrderSendDataokx,
-    amendOrderSendDataokx,
-    inst_type_map,
-    inst_type_map_reverse,
-    order_state_map,
-    order_state_map_reverse
+    depthData, 
+    orderSendData, 
+    cancelOrderSendData,
+    amendOrderSendData,
     )
 
 from crypto_rest_python.okx.sync.rest_v5 import okx_api_v5
@@ -121,7 +118,7 @@ class okxGateway(baseGateway):
         self.apiKey = config['apiKey']
         self.secretKey = config['secretKey']
         self.passPhrase = config['passPhrase']
-        self.account_name = config['accountName']
+        self.account_name = config['account_name']
         self.isTest = config['isTest']
         if self.isTest:
             self.websocketPubUrl = WS_PUB_URL_SIMULATION
@@ -157,11 +154,12 @@ class okxGateway(baseGateway):
         for data in result["data"]:
             info = self.exchange_info_transfer(data)
             self.instrument_info[info.inst_id_local] = info
+        return
 
     def exchange_info_transfer(self, data):
         info = instInfoData()
         info.exchange = EXCHANGE_NAME
-        info.inst_type = inst_type_map[data["instType"]]
+        info.inst_type = data["instType"].lower()
         instId = data["instId"]
         info.inst_id = instId.lower()
         info.inst_id_local = self.get_inst_id_local(instId)
@@ -229,6 +227,10 @@ class okxGateway(baseGateway):
                 baseCcy = info.base_ccy.upper()
                 channel = {'channel': 'account', 'ccy': baseCcy}
                 channels_pri.append(channel)
+                quoteCcy = info.quote_ccy.upper()
+                if quoteCcy != "USDT":
+                    channel = {'channel': 'account', 'ccy': quoteCcy}
+                    channels_pri.append(channel)
             channel = {'channel': 'account', 'ccy': 'USDT'}
             channels_pri.append(channel)
 
@@ -257,7 +259,8 @@ class okxGateway(baseGateway):
 
     def get_account(self, inst_id: str, inst_type: str, ccy: str) -> accountData:
         ccy = ccy.upper()
-        inst_ccy_local = self.get_ccy_local(ccy)
+        inst_ccy_local = self.get_ccy_local("", "", ccy)
+        print(f"get account {inst_id} {inst_type} {ccy}")
 
         if inst_ccy_local in self.account_dict:
             return self.account_dict[inst_ccy_local]
@@ -309,10 +312,10 @@ class okxGateway(baseGateway):
         inst_id_local = self.get_inst_id_local(inst_id)
         return self.instrument_info[inst_id_local]
     
-    async def send_order(self, order: orderSendDataokx):
+    async def send_order(self, order: orderSendData):
         # check price limit 
         inst_id_local = self.get_inst_id_local(order.inst_id)
-        order.sz_change(self.instrument_info[inst_id_local])
+        # order.sz_change(self.instrument_info[inst_id_local])
 
         d = {
             "id": str(order.ws_id),
@@ -333,7 +336,7 @@ class okxGateway(baseGateway):
 
         await self.ws_private.send(json.dumps(d))
     
-    async def send_batch_order(self, order_list: List[orderSendDataokx]):
+    async def send_batch_order(self, order_list: List[orderSendData]):
         
         li = []
         ws_id = ""
@@ -342,7 +345,7 @@ class okxGateway(baseGateway):
                 ws_id = order.ws_id
 
             inst_id_local = self.get_inst_id_local(order.inst_id)
-            order.sz_change(self.instrument_info[inst_id_local])
+            # order.sz_change(self.instrument_info[inst_id_local])
 
             li.append({
                 "clOrdId": order.cl_ord_id,
@@ -364,7 +367,7 @@ class okxGateway(baseGateway):
             "args": li}
         await self.ws_private.send(json.dumps(d))
     
-    async def cancel_order(self, cancel: cancelOrderSendDataokx):
+    async def cancel_order(self, cancel: cancelOrderSendData):
         args = {}
         args["instId"] = cancel.inst_id.upper()
         if cancel.ord_id:
@@ -377,7 +380,7 @@ class okxGateway(baseGateway):
             "args": [args]}
         await self.ws_private.send(json.dumps(d))    
         
-    async def cancel_batch_orders(self, cancel_list: List[cancelOrderSendDataokx]):
+    async def cancel_batch_orders(self, cancel_list: List[cancelOrderSendData]):
         args = {}
         args_list = []
         ws_id: str = ""
@@ -399,7 +402,7 @@ class okxGateway(baseGateway):
         }
         await self.ws_private.send(json.dumps(d))
 
-    async def amend_order(self, amend: amendOrderSendDataokx):
+    async def amend_order(self, amend: amendOrderSendData):
         args = {}
         args["instId"] = amend.inst_id.upper()
         if amend.new_sz:
@@ -414,7 +417,7 @@ class okxGateway(baseGateway):
         }
         await self.ws_private.send(json.dumps(d))
 
-    async def amend_batch_order(self, amend_list: List[amendOrderSendDataokx]):
+    async def amend_batch_order(self, amend_list: List[amendOrderSendData]):
         args = {}
         args_list = []
         ws_id: str = ""
@@ -450,7 +453,7 @@ class okxGateway(baseGateway):
         orderbooks = self.depth_dict_helper[instId]
         info = self.instrument_info[inst_id_local]
         
-        depth_data = depthDataokx()
+        depth_data = depthData()
         depth_data.gateway_name = self.gateway_name
         depth_data.exchange = self.exchange_name
         depth_data.inst_type = info.inst_type
@@ -470,7 +473,6 @@ class okxGateway(baseGateway):
             bids_list.append([bids[0], bids[1]])
         depth_data.asks_list = asks_list
         depth_data.bids_list = bids_list        
-        depth_data.checksum = int(orderbooks["checksum"])
 
         self.depth_dict[inst_id_local] = depth_data
 
@@ -478,7 +480,7 @@ class okxGateway(baseGateway):
 
     def account_trans(self, ccy: str) -> accountData:
         detail = self.account_dict_helper["details"][ccy]
-        ccy_local = self.get_ccy_local(ccy)
+        ccy_local = self.get_ccy_local("", "", ccy)
         
         account_data = accountData()
         account_data.gateway_name = self.gateway_name
@@ -542,7 +544,7 @@ class okxGateway(baseGateway):
         order_data.ord_id = order['ordId']
         order_data.cl_ord_id = order['clOrdId']
         
-        order_data.state = order_state_map[order['state']]
+        order_data.state = order['state']
         order_data.px = ZERODECIMAL if not order['px'] else Decimal(order['px'])
         order_data.sz = ZERODECIMAL if not order['sz'] else Decimal(order['sz'])
         order_data.pnl = ZERODECIMAL if not order['pnl'] else Decimal(order['pnl'])
@@ -571,6 +573,37 @@ class okxGateway(baseGateway):
             self.orders_dict[order_data.ord_id] = order_data
 
         return order_data
+
+    def fill_trans(self, order: orderData) -> fillData:
+        instId = order['instId']
+        inst_id_local = self.get_inst_id_local(instId)
+        info = self.instrument_info[inst_id_local]
+
+        fill = fillData()
+        fill.gateway_name = self.gateway_name
+        fill.account_name = self.account_name
+        fill.exchange = self.exchange_name
+        fill.inst_type = info.inst_type
+        fill.inst_id = info.inst_id
+        fill.inst_id_local = inst_id_local
+
+        fill.ord_type = order.ord_type
+        fill.side = order.side
+        fill.ord_id = order.ord_id
+        fill.cl_ord_id = order.cl_ord_id
+        fill.bill_id = ""
+        fill.trade_id = order["tradeId"] if "tradeId" in order else ""
+        fill.tag = order['tag']
+        fill.taker_or_maker = "maker" if order['rebate'] else "taker"
+        fill.fill_px = Decimal(order['fillPx'])
+        fill.fill_sz = Decimal(order['fillSz'])
+        fill.fee_ccy = order['feeCcy'].lower()
+        fill.fee = ZERODECIMAL if not order['fee'] else Decimal(order['fee'])
+        fill.rebate_ccy = order['rebateCcy'].lower()
+        fill.rebate = ZERODECIMAL if not order['rebate'] else Decimal(order['rebate'])
+        fill.time_epoch = Decimal(order['uTime'])
+        fill.time_china = dt_epoch_to_china_str(order['uTime'])
+        return fill
 
     async def ws_info_trans(self, d: dict) -> wsInfoData:
         if d["op"] in  ["order", "cancel-order", "amend-order"]:
@@ -992,7 +1025,12 @@ class okxGateway(baseGateway):
                                     ordId = order["ordId"]
                                     self.orders_dict_helper[ordId] = order
                                     order_data = self.order_trans(ordId)
+                                    if order_data.fill_sz:
+                                        fill_data = self.fill_trans(order)
+                                        if self.listener_fill:
+                                            await self.listener_fill(fill_data)
                                     await self.listener_order(order_data)
+                                    
 
             except Exception as e:
                 if 'cannot schedule new FUTURES after shutdown' in str(e):
@@ -1009,6 +1047,42 @@ class okxGateway(baseGateway):
                 # websocket break 之后
                 continue
     
+    def cancel_batch_orders_rest(self, cancel_list: List[cancelOrderSendData]) -> List[wsInfoData]:
+        post_list = []
+        for cancel_order in cancel_list:
+            d = {}
+            if cancel_order.ord_id:
+                d["instId"] = cancel_order.inst_id.upper()
+                d["ordId"] = cancel_order.ord_id
+                post_list.append(d)
+            elif cancel_order.cl_ord_id:
+                d['instId'] = cancel_order.inst_id.upper()
+                d['clOrdId'] = cancel_order.cl_ord_id
+                post_list.append(d)
+            
+        result = self.rest.trade_post_cancel_batch_orders(post_list)
+        ret = []
+
+        for data in result['data']:
+            ws_info = wsInfoData()
+            ws_info.gateway_name = self.gateway_name
+            ws_info.account_name = self.account_name
+            ws_info.channel = orderChannelData.BATCHORDERS
+            if data["clOrdId"]:
+                ws_info.cl_ord_id = data["clOrdId"]
+            if data["ordId"]:
+                ws_info.ord_id = data["ordId"]
+            if data["sCode"]:
+                ws_info.code = data["sCode"]
+            if data["sMsg"]:
+                ws_info.msg = data["sMsg"]
+            ret.append(ws_info)
+        return ret
+
+    def cancel_order_rest(self, cancel: cancelOrderSendData):
+        return 
+    
+
 
 ################ exchange helper ################  
 

@@ -282,6 +282,7 @@ class orderSendData:
     px: Decimal = 0
     sz: Decimal = 0 # how many ccy, (sz=0.1, ccy=btc)  (sz=100, ccy=USD)
     ccy: str = "" 
+    ws_id: str = ""
 
 
 @dataclass
@@ -291,6 +292,7 @@ class cancelOrderSendData:
     inst_id_local: str = ""
     ord_id: str = ""
     cl_ord_id: str = ""
+    ws_id: str = ""
 
 @dataclass
 class amendOrderSendData:
@@ -302,6 +304,7 @@ class amendOrderSendData:
     new_sz: Decimal = 0
     new_px: Decimal = 0
     ccy: str = ""
+    ws_id: str = ""
     
 
     
