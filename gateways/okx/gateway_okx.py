@@ -333,7 +333,7 @@ class okxGateway(baseGateway):
         if not self.ws_private:
             self.log_record(f"not have ws_private, return, send_ioc_order return!")
             return
-
+        print(f"send order: {d}")
         await self.ws_private.send(json.dumps(d))
     
     async def send_batch_order(self, order_list: List[orderSendData]):
@@ -409,12 +409,16 @@ class okxGateway(baseGateway):
             args["newSz"] = str(amend.new_sz)
         if amend.new_px:
             args["newPx"] = str(amend.new_px)
-
+        if amend.ord_id:
+            args["ordId"] = str(amend.ord_id)
+        elif amend.cl_ord_id:
+            args["clOrdId"] = str(amend.cl_ord_id)
         d = {
             "id": amend.ws_id,
             "op": "amend-order",
             "args": [args]
         }
+        print(f"gateway okx: send amend order: {d}")
         await self.ws_private.send(json.dumps(d))
 
     async def amend_batch_order(self, amend_list: List[amendOrderSendData]):
@@ -429,6 +433,11 @@ class okxGateway(baseGateway):
                 args["newSz"] = str(amend.new_sz)
             if amend.new_px:
                 args["newPx"] = str(amend.new_px)
+
+            if amend.ord_id:
+                args["ordId"] = str(amend.ord_id)
+            elif amend.cl_ord_id:
+                args["clOrdId"] = str(amend.cl_ord_id)
             args_list.append(args)
         
         d = {
@@ -610,7 +619,7 @@ class okxGateway(baseGateway):
             ws_info = wsInfoData()
             ws_info.gateway_name = self.gateway_name
             ws_info.account_name = self.account_name
-            ws_info.ws_id = d["ws_id"]
+            ws_info.ws_id = d["id"]
             if d["op"] == "order":
                 ws_info.channel = orderChannelData.ORDER
             elif d["op"] == "cancel-order":
@@ -628,7 +637,7 @@ class okxGateway(baseGateway):
                 ws_info = wsInfoData()
                 ws_info.gateway_name = self.gateway_name
                 ws_info.account_name = self.account_name
-                ws_info.ws_id = d["ws_id"]
+                ws_info.ws_id = d["id"]
                 if d["op"] == "batch-order":
                     ws_info.channel = orderChannelData.BATCHORDERS
                 elif d["op"] == "batch-cancel-order":
@@ -976,7 +985,8 @@ class okxGateway(baseGateway):
 
                         # this is ws send order/cancel order/amend order
                         elif 'id' in res.keys():
-                            # self.log_record('ws info')
+                            self.log_record('gateway ws info')
+                            self.log_record(res)
                             # after transfer push
                             await self.ws_info_trans(res)
                         
@@ -1008,7 +1018,6 @@ class okxGateway(baseGateway):
                                     account_data = self.account_trans(ccy)
                                     await self.listener_account(account_data)
                                     
-
                             elif channel == 'positions':
                                 # self.log_record('positions')
                                 for position in data:
@@ -1020,7 +1029,8 @@ class okxGateway(baseGateway):
                                     await self.listener_position(position_data)
                             
                             elif channel == 'orders':
-                                # self.log_record('orders')
+                                self.log_record("gateway receive orders")
+                                self.log_record(data)
                                 for order in data:
                                     ordId = order["ordId"]
                                     self.orders_dict_helper[ordId] = order
@@ -1030,7 +1040,10 @@ class okxGateway(baseGateway):
                                         if self.listener_fill:
                                             await self.listener_fill(fill_data)
                                     await self.listener_order(order_data)
-                                    
+
+                            else:
+                                print("gateway receive other")
+                                print(res) 
 
             except Exception as e:
                 if 'cannot schedule new FUTURES after shutdown' in str(e):
