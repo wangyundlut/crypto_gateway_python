@@ -9,6 +9,10 @@ class utility_mmap:
         self.file_txt = file_txt
         self.memory_size = memory_size
 
+        folder_path, file_name = os.path.split(self.file_txt)
+        if not os.path.exists(folder_path):
+            os.makedirs(os.path.join(folder_path))
+
         if os.path.exists(self.file_txt):
             f = open(self.file_txt, "r+b", )
         else:
@@ -16,9 +20,6 @@ class utility_mmap:
         self.file = f
     
     def init_file(self):
-        folder_path, file_name = os.path.split(self.file_txt)
-        if not os.path.exists(folder_path):
-            os.makedirs(os.path.join(folder_path))
         
         with open(self.file_txt, "wb") as f:
             f.write((" " * self.memory_size).encode())
