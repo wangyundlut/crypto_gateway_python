@@ -10,7 +10,7 @@ class orderError:
     INSUFFICIENTBALANCE =  "Order placement failed due to insufficient balance"
     MINORDERSIZE = "Order amount should be greater than the min available amount."
     MULTIPLESIZE = "Order count should be the integer multiples of the lot size"
-    
+    DUPLICATECLIORDID = "Duplicated client order ID"
 
 @dataclass
 class cancelOrderError:

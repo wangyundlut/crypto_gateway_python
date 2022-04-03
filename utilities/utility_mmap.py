@@ -2,26 +2,41 @@ import mmap
 from time import sleep
 import json
 from pprint import pprint
+import os
+class utility_mmap:
+    
+    def __init__(self, file_txt, memory_size):
+        self.file_txt = file_txt
+        self.memory_size = memory_size
 
-with open("hello.txt", "r+b") as f:
-    while True:
-        # memory-map the file, size 0 means whole file
-        mm = mmap.mmap(f.fileno(), 0)
-        # read content via standard file methods
-        # print(mm.readline())  # prints b"Hello Python!\n"
+        if os.path.exists(self.file_txt):
+            f = open(self.file_txt, "r+b", )
+        else:
+            f = open(self.file_txt, "w+b", )
+        self.file = f
+    
+    def init_file(self):
+        folder_path, file_name = os.path.split(self.file_txt)
+        if not os.path.exists(folder_path):
+            os.makedirs(os.path.join(folder_path))
+        
+        with open(self.file_txt, "wb") as f:
+            f.write((" " * self.memory_size).encode())
+    
+    def mmap_set(self, d):
+        
+        mm = mmap.mmap(self.file.fileno(), 0)
+        msg = json.dumps(d)
+        if len(msg) < self.memory_size:
+            for i in range(self.memory_size - len(msg)):
+                msg += " "
+        mm[0:self.memory_size] = msg.encode()
+
+    def mmap_get(self):
+        
+        mm = mmap.mmap(self.file.fileno(), 0)
         msg = mm.readline().decode()
         
         msg = msg.replace(" ", "")
-        pprint(json.loads(msg))
-        # read content via slice notation
-        # print(mm[:5])  # prints b"Hello"
-        # update content using slice notation;
-
-        # note that new content must have same size
-        # mm[6:] = b" world!\n"
-        # ... and read again using standard file methods
-        # mm.seek(0)
-        # print(mm.readline())  # prints b"Hello  world!\n"
-        # close the map
-        # mm.close()
-        sleep(1)
+        return json.loads(msg)
+    

@@ -29,6 +29,11 @@ from crypto_gateway_python.data_structure.base_data_struct import(
     orderSideData,
     contractTypeData
 )
+from crypto_gateway_python.data_structure.base_error import (
+    cancelOrderError,
+    orderError,
+    amendOrderError
+)
 
 from crypto_gateway_python.data_structure.base_data_struct import (
     depthData, 
@@ -333,7 +338,7 @@ class okxGateway(baseGateway):
         if not self.ws_private:
             self.log_record(f"not have ws_private, return, send_ioc_order return!")
             return
-        print(f"send order: {d}")
+        # print(f"send order: {d}")
         await self.ws_private.send(json.dumps(d))
     
     async def send_batch_order(self, order_list: List[orderSendData]):
@@ -352,7 +357,7 @@ class okxGateway(baseGateway):
                 "side": order.side,
                 "instId": order.inst_id.upper(),
                 "tdMode": "cross",
-                "ordType": "ioc",
+                "ordType": order.ord_type,
                 "sz": str(order.sz),
                 "px": str(order.px)
             })
@@ -365,6 +370,7 @@ class okxGateway(baseGateway):
             "id": ws_id,
             "op": "batch-orders",
             "args": li}
+        # self.log_record(f"gateway send batch order {d}")
         await self.ws_private.send(json.dumps(d))
     
     async def cancel_order(self, cancel: cancelOrderSendData):
@@ -418,7 +424,7 @@ class okxGateway(baseGateway):
             "op": "amend-order",
             "args": [args]
         }
-        print(f"gateway okx: send amend order: {d}")
+        # print(f"gateway okx: send amend order: {d}")
         await self.ws_private.send(json.dumps(d))
 
     async def amend_batch_order(self, amend_list: List[amendOrderSendData]):
@@ -438,6 +444,7 @@ class okxGateway(baseGateway):
                 args["ordId"] = str(amend.ord_id)
             elif amend.cl_ord_id:
                 args["clOrdId"] = str(amend.cl_ord_id)
+
             args_list.append(args)
         
         d = {
@@ -502,7 +509,7 @@ class okxGateway(baseGateway):
         account_data.debt = Decimal(detail["liab"])
         account_data.frozen = Decimal(detail["frozenBal"])
         account_data.cash_balance = Decimal(detail['cashBal'])
-        if not self.account_dict_helper["mgnRatio"]:
+        if not detail["mgnRatio"]:
             account_data.account_risk = Decimal("10000")
         else:
             account_data.account_risk = Decimal(detail["mgnRatio"])
@@ -538,6 +545,10 @@ class okxGateway(baseGateway):
 
     def order_trans(self, ordId: str) -> orderData:
         order = self.orders_dict_helper[ordId]
+        # self.log_record(f'gateway order: {order}')
+        # self.log_record(order)
+        # self.log_record(order['state'])
+
         instId = order['instId']
         inst_id_local = self.get_inst_id_local(instId)
         info = self.instrument_info[inst_id_local]
@@ -596,10 +607,10 @@ class okxGateway(baseGateway):
         fill.inst_id = info.inst_id
         fill.inst_id_local = inst_id_local
 
-        fill.ord_type = order.ord_type
-        fill.side = order.side
-        fill.ord_id = order.ord_id
-        fill.cl_ord_id = order.cl_ord_id
+        fill.ord_type = order['ordType']
+        fill.side = order["side"]
+        fill.ord_id = order["ordId"]
+        fill.cl_ord_id = order["clOrdId"]
         fill.bill_id = ""
         fill.trade_id = order["tradeId"] if "tradeId" in order else ""
         fill.tag = order['tag']
@@ -629,7 +640,12 @@ class okxGateway(baseGateway):
             ws_info.ord_id = d["data"][0]["ordId"]
             ws_info.cl_ord_id = d["data"][0]["clOrdId"]
             ws_info.code = d["data"][0]["sCode"]
-            ws_info.msg = d["data"][0]["sMsg"]
+            if d["data"][0]["sMsg"] == "Cancellation failed as the order does not exist.":
+                ws_info.msg = cancelOrderError.NOTEXIST
+            elif d["data"][0]["sMsg"] == "Duplicated client order ID":
+                ws_info.msg = orderError.DUPLICATECLIORDID
+            else:
+                ws_info.msg = d["data"][0]["sMsg"]
             await self.listener_ws(ws_info)
 
         elif d["op"] in ["batch-orders", "batch-cancel-orders", "batch-amend-orders"]:
@@ -638,11 +654,11 @@ class okxGateway(baseGateway):
                 ws_info.gateway_name = self.gateway_name
                 ws_info.account_name = self.account_name
                 ws_info.ws_id = d["id"]
-                if d["op"] == "batch-order":
+                if d["op"] == "batch-orders":
                     ws_info.channel = orderChannelData.BATCHORDERS
-                elif d["op"] == "batch-cancel-order":
+                elif d["op"] == "batch-cancel-orders":
                     ws_info.channel = orderChannelData.BATCHCANCELORDERS
-                elif d["op"] == "batch-amend-order":
+                elif d["op"] == "batch-amend-orders":
                     ws_info.channel = orderChannelData.BATCHAMENDORDERS
                 ws_info.ord_id = data["ordId"]
                 ws_info.cl_ord_id = data["clOrdId"]
@@ -985,11 +1001,11 @@ class okxGateway(baseGateway):
 
                         # this is ws send order/cancel order/amend order
                         elif 'id' in res.keys():
-                            self.log_record('gateway ws info')
-                            self.log_record(res)
+                            # self.log_record('gateway ws info')
+                            # self.log_record(res)
                             # after transfer push
                             await self.ws_info_trans(res)
-                        
+
                         elif 'arg' in res.keys():
                             arg = res['arg']
                             channel = arg['channel']
@@ -1029,8 +1045,8 @@ class okxGateway(baseGateway):
                                     await self.listener_position(position_data)
                             
                             elif channel == 'orders':
-                                self.log_record("gateway receive orders")
-                                self.log_record(data)
+                                # self.log_record("gateway receive orders")
+                                # self.log_record(data)
                                 for order in data:
                                     ordId = order["ordId"]
                                     self.orders_dict_helper[ordId] = order
