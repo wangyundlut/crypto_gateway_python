@@ -19,13 +19,19 @@ orderSendData, cancelOrderSendData, amendOrderSendData, orderErrorCodeMsgData
 
 @dataclass
 class orderStateData:
-    CREATED = "created" # not in exchange queue, but readly
-    SUBMITTED = "submitted" # in exchange queue
+    SENDING = "sending" # local sending
+    SENDSUCCEED = "send-succeed" # accept by exchange
+    SENDFAILED = "send-failed" # send failed, reject by exchange
+
     PARTIALFILLED = "partial-filled"
     FILLED = "filled"
     PARTIALCANCELED = "partial-canceled" # partial-filled then cancel rest
-    CANCELLING = "canceling" # in exchange, ready to quit
+    CANCELING = "canceling" # in exchange, ready to quit
     CANCELED = "canceled"
+    CANCELFAILED = "cancel-failed"
+    AMENDING = "amending"
+    AMENDSUCCEED = "amend-succeed"
+    AMENDFAILED = "amend-failed"
 
 @dataclass
 class orderSendStateData:

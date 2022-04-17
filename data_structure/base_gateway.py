@@ -23,8 +23,9 @@ change account data to local account data(class)
 change position data to local position data(class)
 change order data to local order  data(class)
 """
-from typing import Dict, List 
-
+import asyncio
+import aiohttp 
+from typing import Dict, List
 from .base_data_struct import (
     accountData,
     instInfoData,
@@ -49,6 +50,11 @@ class baseGateway:
         self.rest = None
         self.inst_id_info = {}
 
+    ##################add loop and ##############################
+    def add_loop(self, loop: asyncio.AbstractEventLoop, session: aiohttp.ClientSession):
+        self.loop = loop
+        self.session = session
+    
     ##################load rest##############################
     def add_config_account(self, config_path='/test/.yaml'):
         """
@@ -127,25 +133,25 @@ class baseGateway:
     async def amend_batch_order(self, amend_list: List[amendOrderSendData]):
         pass
     
-    def send_order_rest(self, order: orderSendData):
+    def send_order_sync(self, order: orderSendData):
         """
         rest also async, 
         """
         pass
 
-    def send_batch_order_rest(self, order_list: List[orderSendData]):
+    def send_batch_order_sync(self, order_list: List[orderSendData]):
         pass
 
-    def cancel_order_rest(self, cancel: cancelOrderSendData):
+    def cancel_order_sync(self, cancel: cancelOrderSendData):
         pass
 
-    def cancel_batch_orders_rest(self, cancel_list: List[cancelOrderSendData]):
+    def cancel_batch_orders_sync(self, cancel_list: List[cancelOrderSendData]):
         pass
     
-    def amend_order_rest(self, amend: amendOrderSendData):
+    def amend_order_sync(self, amend: amendOrderSendData):
         pass
 
-    def amend_batch_order_rest(self, amend_list: List[amendOrderSendData]):
+    def amend_batch_order_sync(self, amend_list: List[amendOrderSendData]):
         pass
 
     def get_order_info(self, ord_id="", cl_ord_id="") -> orderData:
@@ -192,7 +198,6 @@ class baseGateway:
     
     def depth_transfer(self, depth):
         pass
-
     
     def account_trans(self, account):
         """

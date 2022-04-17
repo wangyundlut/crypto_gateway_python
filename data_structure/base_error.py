@@ -11,6 +11,7 @@ class orderError:
     MINORDERSIZE = "Order amount should be greater than the min available amount."
     MULTIPLESIZE = "Order count should be the integer multiples of the lot size"
     DUPLICATECLIORDID = "Duplicated client order ID"
+    POSTONLYPRICEERROR = "Order would immediately match and take"
 
 @dataclass
 class cancelOrderError:
