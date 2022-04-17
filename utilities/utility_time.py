@@ -1,5 +1,6 @@
 import re
 import time
+from decimal import Decimal
 from datetime import datetime, timedelta, tzinfo, timezone
 
 TZCHINA = timezone(timedelta(hours=8), 'Asia/Shanghai')
@@ -9,8 +10,14 @@ TIMEFORMAT = '%Y-%m-%d %H:%M:%S.%f %z'
 def dt_china_now_str():
     return datetime.now(tz=TZCHINA).strftime(TIMEFORMAT)
 
+def dt_china_delta_str(delta: timedelta):
+    return (datetime.now(tz=TZCHINA) - delta).strftime(TIMEFORMAT)
+
 def dt_utz_now_str():
     return datetime.now(tz=TZUTC).strftime(TIMEFORMAT)
+
+def dt_epoch_utz_now():
+    return Decimal(int(1000 * datetime.now(tz=TZUTC).timestamp()))
 
 def dt_epoch_to_china_str(ts):
     time_local = datetime.fromtimestamp(int(ts) / 1000)

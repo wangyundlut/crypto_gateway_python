@@ -42,8 +42,8 @@ from crypto_gateway_python.data_structure.base_data_struct import (
     amendOrderSendData,
     )
 
-from crypto_rest_python.okx.sync.rest_v5 import okx_api_v5
-from crypto_rest_python.okx.sync.consts import (
+from crypto_rest_python.okx.sync_rest.rest_v5 import okx_api_v5
+from crypto_rest_python.okx.sync_rest.consts import (
     EXCHANGE_NAME,
     WS_PRI_URL,
     WS_PRI_URL_SIMULATION,
@@ -119,7 +119,7 @@ class okxGateway(baseGateway):
     ##################load rest##############################
     def add_config_account(self, config):
         # config -> load rest
-        assert config['exchange'] == EXCHANGE_NAME
+        assert config['exchange'] == self.exchange_name
         self.apiKey = config['apiKey']
         self.secretKey = config['secretKey']
         self.passPhrase = config['passPhrase']
@@ -128,11 +128,7 @@ class okxGateway(baseGateway):
         if self.isTest:
             self.websocketPubUrl = WS_PUB_URL_SIMULATION
             self.websocketPriUrl = WS_PRI_URL_SIMULATION
-        self.load_rest()
-    
-    def load_rest(self):
-        # confige file
-        
+
         self.rest = okx_api_v5(
             self.apiKey, 
             self.secretKey, 
@@ -166,7 +162,7 @@ class okxGateway(baseGateway):
         info.exchange = EXCHANGE_NAME
         info.inst_type = data["instType"].lower()
         instId = data["instId"]
-        info.inst_id = instId.lower()
+        info.inst_id = instId
         info.inst_id_local = self.get_inst_id_local(instId)
 
         info.base_ccy = data["baseCcy"].lower()
@@ -257,7 +253,7 @@ class okxGateway(baseGateway):
             ask_price = self.depth_dict[inst_id_local].ask_price_1
             bid_price = self.depth_dict[inst_id_local].bid_price_1
             middle_price = Decimal("0.5") * (ask_price + bid_price)
-            return middle_price
+            return bid_price
         else:
             result = self.rest.market_get_ticker(instId=info.inst_id.upper())
             return Decimal(result['data'][0]['last'])
@@ -454,11 +450,13 @@ class okxGateway(baseGateway):
         }
         await self.ws_private.send(json.dumps(d))     
 
-    def get_coroutine_market(self):
-        return self.market_coroutine()
+    def start_coroutine_market(self):
+        asyncio.run_coroutine_threadsafe(self.market_coroutine(), self.loop)
+        # return self.market_coroutine()
     
-    def get_coroutine_trade(self):
-        return self.private_coroutine()
+    def start_coroutine_trade(self):
+        asyncio.run_coroutine_threadsafe(self.private_coroutine(), self.loop)
+        # return self.private_coroutine()
 
     def get_engine_status(self):
         # use and ,both ready will return True
@@ -564,7 +562,15 @@ class okxGateway(baseGateway):
         order_data.ord_id = order['ordId']
         order_data.cl_ord_id = order['clOrdId']
         
-        order_data.state = order['state']
+        if order['state'] == "live":
+            order_data.state = orderStateData.SENDSUCCEED
+        elif order['state'] == "partially_filled":
+            order_data.state = orderStateData.PARTIALFILLED
+        elif order['state'] == "filled":
+            order_data.state = orderStateData.FILLED
+        elif order['state'] == "canceled":
+            order_data.state = orderStateData.CANCELED
+        
         order_data.px = ZERODECIMAL if not order['px'] else Decimal(order['px'])
         order_data.sz = ZERODECIMAL if not order['sz'] else Decimal(order['sz'])
         order_data.pnl = ZERODECIMAL if not order['pnl'] else Decimal(order['pnl'])
@@ -1076,7 +1082,7 @@ class okxGateway(baseGateway):
                 # websocket break 之后
                 continue
     
-    def cancel_batch_orders_rest(self, cancel_list: List[cancelOrderSendData]) -> List[wsInfoData]:
+    def cancel_batch_orders_sync(self, cancel_list: List[cancelOrderSendData]) -> List[wsInfoData]:
         post_list = []
         for cancel_order in cancel_list:
             d = {}
@@ -1108,9 +1114,40 @@ class okxGateway(baseGateway):
             ret.append(ws_info)
         return ret
 
-    def cancel_order_rest(self, cancel: cancelOrderSendData):
+    def cancel_order_sync(self, cancel: cancelOrderSendData) -> wsInfoData:
+        
+        if cancel.ord_id:
+            orderId = cancel.ord_id
+        else:
+            orderId = None
+        if cancel.cl_ord_id:
+            clOrdId = cancel.cl_ord_id
+        else:
+            clOrdId = None
+    
+        result = self.rest.trade_post_cancel_order(
+            instId=cancel.inst_id,
+            ordId=orderId,
+            clOrdId=clOrdId
+        )
+        
         return 
     
+    def send_order_sync(self, order: orderSendData) -> wsInfoData:
+        
+        if order.px:
+            px=str(order.px)
+        else:
+            px=None
+        result = self.rest.trade_post_order(
+            instId=order.inst_id,
+            side=order.side,
+            ordType=order.ord_type,
+            sz=order.sz,
+            px=px
+        )
+        # result - > ws info
+        return 
 
 
 ################ exchange helper ################  

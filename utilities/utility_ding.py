@@ -27,7 +27,7 @@ class helper_dingding:
         ding = chatbot.DingtalkChatbot(webhook=config_file['webhook'])
         self.ding = ding
         
-    def ding_notice(self, msg, keywords='notice'):
+    def ding_notice(self, msg, keywords='debug'):
         try:
             # all ding should limit ip, then will send free
             msg = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ::  {msg}"
