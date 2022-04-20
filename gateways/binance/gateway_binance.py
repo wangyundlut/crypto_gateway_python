@@ -8,6 +8,7 @@ import yaml
 from pprint import pprint
 from datetime import datetime, timedelta
 from decimal import Decimal
+from copy import deepcopy
 import logging
 from typing import Dict, List
 
@@ -123,7 +124,7 @@ class binanceGateway(baseGateway):
 
         for data in result["symbols"]:
             self.exchange_info_transfer(data)
-    
+
     def exchange_info_transfer(self, data) -> instInfoData:
         info = instInfoData()
         info.exchange = self.exchange_name
@@ -144,17 +145,18 @@ class binanceGateway(baseGateway):
                 info.min_order_sz = Decimal(filterType["minQty"])
 
         for inst_type in [instTypeData.SPOT, instTypeData.MARGINCROSS, instTypeData.MARGINISOLATED]:
-            info.inst_type = inst_type
-            info.inst_id = data["symbol"]
-            info.inst_id_local = self.get_inst_id_local(info.inst_id, info.inst_type)
-            self.instrument_info[info.inst_id_local] = info
+            info_ = deepcopy(info)
+            info_.inst_type = inst_type
+            info_.inst_id = data["symbol"]
+            info_.inst_id_local = self.get_inst_id_local(info_.inst_id, inst_type)
+            self.instrument_info[info_.inst_id_local] = info_
         
     def get_inst_id_local(self, inst_id: str, inst_type: str = ""):
-        # for okx, all products can be distinct by inst_id
+        # for all products can be distinct by inst_id
         return f"{self.exchange_name}_{inst_type.lower()}_{inst_id.lower()}"
     
     def get_ccy_local(self, ccy: str, inst_type: str = ""):
-        # for okx, all products can be distinct by inst_id
+        # for all products can be distinct by inst_id
         return f"{self.exchange_name}_{inst_type.lower()}_{ccy.lower()}"
 
     def get_account(self, inst_id: str, inst_type: str, ccy: str) -> accountData:
@@ -173,7 +175,7 @@ class binanceGateway(baseGateway):
                 if balance["asset"].lower() == ccy.lower():
                     
                     acc.ccy = balance["asset"]
-                    acc.ccy_local = self.get_ccy_local(balance["asset"], "spot")
+                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeData.SPOT)
                     
                     acc.asset = Decimal(balance["free"]) + Decimal(balance["locked"])
                     acc.debt = Decimal(0)
@@ -190,7 +192,7 @@ class binanceGateway(baseGateway):
         elif inst_type == instTypeData.MARGINCROSS:
             result = self.sync_spot.lever_get_account()
             balances  = result['userAssets']
-            inst_id_local = self.get_inst_id_local(inst_id, "spot")
+            inst_id_local = self.get_inst_id_local(inst_id, instTypeData.MARGINCROSS)
             info = self.instrument_info[inst_id_local]
             for balance in balances:
                 if balance["asset"].lower() == ccy.lower():
@@ -233,9 +235,7 @@ class binanceGateway(baseGateway):
     ##################strategy engine add##############################
 
     def listen_key_call_back(self, request: Request):
-        print(f"listen key call requset ")
-        print(f"{request.response.json()}")
-
+        return
 
     async def extend_listen_key(self):
         spot_api = self.async_spot
@@ -247,7 +247,7 @@ class binanceGateway(baseGateway):
                 
                 for instType, listenKey in self.listenKeys.items():
                     spot_api.websocket_get_listenKey_spot(cb=self.listen_key_call_back)
-                    spot_api.websocket_delete_listenKey_lever(cb=self.listen_key_call_back)
+                    spot_api.websocket_get_listenKey_lever(cb=self.listen_key_call_back)
                     
                     # # print(f"extend spot listenKey: {result}")
                     # result = spot_api.websocket_extend_listenKey_lever(listenKey_dict['lever'])
@@ -264,8 +264,17 @@ class binanceGateway(baseGateway):
         
     def start_coroutine_trade(self):
         asyncio.run_coroutine_threadsafe(self.extend_listen_key(), self.loop)
-        asyncio.run_coroutine_threadsafe(self.spot_websocket_with_login(), self.loop)
-
+        spot_start = False
+        scross_start = False
+        for inst_id_local in self.inst_id_set:
+            info = self.instrument_info[inst_id_local]
+            if info.inst_type == instTypeData.SPOT and spot_start == False:
+                asyncio.run_coroutine_threadsafe(self.spot_websocket_with_login(), self.loop)
+                spot_start = True
+            if info.inst_type == instTypeData.MARGINCROSS and scross_start == False:
+                asyncio.run_coroutine_threadsafe(self.cross_websocket_with_login(), self.loop)
+                scross_start = True
+                
     async def spot_market(self):
         url = "wss://stream.binance.com:9443/stream?streams="
         """
@@ -458,11 +467,11 @@ class binanceGateway(baseGateway):
                             elif res["X"] == "FILLED":
                                 order_data.state = orderStateData.FILLED
                             elif res["X"] == "CANCELED":
-                                order_data.state = orderStateData.CANCELED
+                                order_data.state = orderStateData.CANCELSUCCEED
                             elif res["X"] == "REJECTED":
-                                order_data.state = orderStateData.CANCELED
+                                order_data.state = orderStateData.SENDFAILED
                             elif res["X"] == "EXPIRED":
-                                order_data.state = orderStateData.CANCELED
+                                order_data.state = orderStateData.CANCELSUCCEED
                             
                             order_data.px = ZERODECIMAL if not res['p'] else Decimal(res['p'])
                             order_data.sz = ZERODECIMAL if not res['q'] else Decimal(res['q'])
@@ -562,7 +571,7 @@ class binanceGateway(baseGateway):
         def getAccountFromRest():
             result = self.sync_spot.lever_get_account()
             balances  = result['userAssets']
-            inst_id_local = self.get_inst_id_local(inst_id, "spot")
+            inst_id_local = self.get_inst_id_local(inst_id, instTypeData.MARGINCROSS)
             info = self.instrument_info[inst_id_local]
             for balance in balances:
                 if Decimal(balance["netAsset"]) != Decimal(0):
@@ -588,9 +597,9 @@ class binanceGateway(baseGateway):
                 self.listenKeys["cross"] = listenKey
 
                 async with websockets.connect(self.spotWebsocketUrl + listenKey) as ws:
-                    account_dict = getAccountFromRest()
+                    # account_dict = getAccountFromRest()
                     
-                    self.log_record(f"spot_websocket_with_login connect.. ")
+                    self.log_record(f"cross_websocket_with_login connect.. ")
                     if not self.spot_private_ready:
                         self.spot_private_ready = True
                         
@@ -623,7 +632,7 @@ class binanceGateway(baseGateway):
                                 acc.account_name = self.account_name
                                 acc.exchange = self.exchange_name
                                 acc.ccy = balance["a"]
-                                acc.ccy_local = self.get_ccy_local(balance["a"], "spot")
+                                acc.ccy_local = self.get_ccy_local(balance["a"], instTypeData.MARGINCROSS)
                                 
                                 acc.asset = Decimal(balance["f"]) + Decimal(balance["l"])
                                 acc.debt = Decimal(0)
@@ -643,7 +652,7 @@ class binanceGateway(baseGateway):
                             print(res)
                         elif res['e'] == 'executionReport':
                             inst_id = res["s"]
-                            inst_id_local = self.get_inst_id_local(inst_id, "spot")
+                            inst_id_local = self.get_inst_id_local(inst_id, instTypeData.MARGINCROSS)
                             info = self.instrument_info[inst_id_local]
                             ZERODECIMAL = Decimal(0)
                             order_data = orderData()
@@ -665,11 +674,11 @@ class binanceGateway(baseGateway):
                             elif res["X"] == "FILLED":
                                 order_data.state = orderStateData.FILLED
                             elif res["X"] == "CANCELED":
-                                order_data.state = orderStateData.CANCELED
+                                order_data.state = orderStateData.CANCELSUCCEED
                             elif res["X"] == "REJECTED":
-                                order_data.state = orderStateData.CANCELED
+                                order_data.state = orderStateData.SENDFAILED
                             elif res["X"] == "EXPIRED":
-                                order_data.state = orderStateData.CANCELED
+                                order_data.state = orderStateData.CANCELSUCCEED
                             
                             order_data.px = ZERODECIMAL if not res['p'] else Decimal(res['p'])
                             order_data.sz = ZERODECIMAL if not res['q'] else Decimal(res['q'])
@@ -749,11 +758,11 @@ class binanceGateway(baseGateway):
             except Exception as e:
                 self.spot_private_ready = False
                 timestamp = local_time()
-                self.log_record(timestamp + " spot_websocket_with_login 连接断开，正在重连……" + str(e))
+                self.log_record(timestamp + " lever_websocket_with_login 连接断开，正在重连……" + str(e))
                 continue
 
     async def ws_receive(self, request: Request):
-        self.log_record(f"binance ws receive: code: {request.response.status_code}, data: {request.response.json()}")
+        # self.log_record(f"binance ws receive: code: {request.response.status_code}, data: {request.response.json()}")
         send_return = sendReturnData()
         send_return.gateway_name = self.gateway_name
         send_return.account_name = self.account_name
@@ -789,7 +798,7 @@ class binanceGateway(baseGateway):
             send_return.channel = orderChannelData.CANCELORDER
             if response.status_code // 100 == 2:
                 send_return.ord_id = str(data["orderId"])
-                send_return.ord_state = orderStateData.CANCELED
+                send_return.ord_state = orderStateData.CANCELSUCCEED
             elif "code" in data:
                 if send_return.code == -2011:
                     send_return.msg = cancelOrderError.NOTEXIST
@@ -1022,23 +1031,23 @@ def local_time():
 def round_float(num):
     return round(float(num), 8)
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     
-    gateway = binanceGateway("test")
-    with open(f"/app/account_config/binance/sub00.yml", "r") as f:
-        config_file = yaml.load(f, Loader=yaml.FullLoader)
-    gateway.add_config_account(config_file)
-    gateway.add_inst_id_needed("LTCBTC", "SPOT")
-    loop = asyncio.get_event_loop()
+#     gateway = binanceGateway("test")
+#     with open(f"/app/account_config/binance/sub00.yml", "r") as f:
+#         config_file = yaml.load(f, Loader=yaml.FullLoader)
+#     gateway.add_config_account(config_file)
+#     gateway.add_inst_id_needed("LTCBTC", "SPOT")
+#     loop = asyncio.get_event_loop()
 
-    tasks = []
+#     tasks = []
     
-    task = gateway.spot_market()
-    tasks.append(task)
-    task = gateway.spot_websocket_with_login()
-    tasks.append(task)
-    task = gateway.extend_listen_key()
-    tasks.append(task)
-    loop.run_until_complete(asyncio.gather(*tasks))
+#     task = gateway.spot_market()
+#     tasks.append(task)
+#     task = gateway.spot_websocket_with_login()
+#     tasks.append(task)
+#     task = gateway.extend_listen_key()
+#     tasks.append(task)
+#     loop.run_until_complete(asyncio.gather(*tasks))
 
-    loop.close()
+#     loop.close()

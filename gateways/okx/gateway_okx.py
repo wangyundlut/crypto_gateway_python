@@ -569,7 +569,7 @@ class okxGateway(baseGateway):
         elif order['state'] == "filled":
             order_data.state = orderStateData.FILLED
         elif order['state'] == "canceled":
-            order_data.state = orderStateData.CANCELED
+            order_data.state = orderStateData.CANCELSUCCEED
         
         order_data.px = ZERODECIMAL if not order['px'] else Decimal(order['px'])
         order_data.sz = ZERODECIMAL if not order['sz'] else Decimal(order['sz'])
@@ -590,7 +590,7 @@ class okxGateway(baseGateway):
         order_data.create_time_epoch = Decimal(order['cTime'])
         order_data.create_time_china = dt_epoch_to_china_str(order['cTime'])
         
-        if order_data.state in [orderStateData.CANCELED, orderStateData.FILLED]:
+        if order_data.state in [orderStateData.CANCELSUCCEED, orderStateData.FILLED]:
             if order_data.ord_id in self.orders_dict_helper:
                 del self.orders_dict_helper[order_data.ord_id]
             if order_data.ord_id in self.orders_dict:

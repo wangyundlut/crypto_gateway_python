@@ -52,12 +52,12 @@ class orderSideData:
 @dataclass
 class instTypeData:
     SPOT = "spot"
-    MARGINCROSS = "cross"
-    MARGINISOLATED = "isolated"
+    MARGINCROSS = "scross"
+    MARGINISOLATED = "sisolated"
     FUTURES = "futures"
-    # FUTURESISOLATED = "fisolated"
+    FUTURESISOLATED = "fisolated"
     SWAP = "swap"
-    # SWAPISOLATED = "fswap"
+    SWAPISOLATED = "fswap"
 
 @dataclass
 class contractTypeData:
