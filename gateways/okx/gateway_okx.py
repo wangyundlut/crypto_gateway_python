@@ -22,7 +22,7 @@ from crypto_gateway_python.data_structure.base_data_struct import(
     orderStateData,
     positionData,
     orderData,
-    wsInfoData,
+    sendReturnData,
     orderChannelData,
     instTypeData,
     instInfoData,
@@ -69,7 +69,7 @@ class okxGateway(baseGateway):
         self.listener_position = None
         self.listener_order = None
         self.listener_fill = None
-        self.listener_ws = None
+        self.listener_send = None
         ##################### listener #####################
 
         self.exchange_name = EXCHANGE_NAME
@@ -631,46 +631,54 @@ class okxGateway(baseGateway):
         fill.time_china = dt_epoch_to_china_str(order['uTime'])
         return fill
 
-    async def ws_info_trans(self, d: dict) -> wsInfoData:
+    async def send_return_trans(self, d: dict) -> sendReturnData:
         if d["op"] in  ["order", "cancel-order", "amend-order"]:
-            ws_info = wsInfoData()
-            ws_info.gateway_name = self.gateway_name
-            ws_info.account_name = self.account_name
-            ws_info.ws_id = d["id"]
+            send_return = sendReturnData()
+            send_return.gateway_name = self.gateway_name
+            send_return.account_name = self.account_name
+            send_return.ws_id = d["id"]
             if d["op"] == "order":
-                ws_info.channel = orderChannelData.ORDER
+                send_return.channel = orderChannelData.ORDER
             elif d["op"] == "cancel-order":
-                ws_info.channel = orderChannelData.CANCELORDER
+                send_return.channel = orderChannelData.CANCELORDER
             elif d["op"] == "amend-order":
-                ws_info.channel = orderChannelData.AMENDORDER
-            ws_info.ord_id = d["data"][0]["ordId"]
-            ws_info.cl_ord_id = d["data"][0]["clOrdId"]
-            ws_info.code = d["data"][0]["sCode"]
+                send_return.channel = orderChannelData.AMENDORDER
+            send_return.ord_id = d["data"][0]["ordId"]
+            send_return.cl_ord_id = d["data"][0]["clOrdId"]
+            send_return.code = d["data"][0]["sCode"]
+
             if d["data"][0]["sMsg"] == "Cancellation failed as the order does not exist.":
-                ws_info.msg = cancelOrderError.NOTEXIST
+                send_return.msg = cancelOrderError.NOTEXIST
             elif d["data"][0]["sMsg"] == "Duplicated client order ID":
-                ws_info.msg = orderError.DUPLICATECLIORDID
+                send_return.msg = orderError.DUPLICATECLIORDID
             else:
-                ws_info.msg = d["data"][0]["sMsg"]
-            await self.listener_ws(ws_info)
+                send_return.msg = d["data"][0]["sMsg"]
+
+            await self.listener_send(send_return)
 
         elif d["op"] in ["batch-orders", "batch-cancel-orders", "batch-amend-orders"]:
             for data in d["data"]:
-                ws_info = wsInfoData()
-                ws_info.gateway_name = self.gateway_name
-                ws_info.account_name = self.account_name
-                ws_info.ws_id = d["id"]
+                send_return = sendReturnData()
+                send_return.gateway_name = self.gateway_name
+                send_return.account_name = self.account_name
+                send_return.ws_id = d["id"]
                 if d["op"] == "batch-orders":
-                    ws_info.channel = orderChannelData.BATCHORDERS
+                    send_return.channel = orderChannelData.BATCHORDERS
                 elif d["op"] == "batch-cancel-orders":
-                    ws_info.channel = orderChannelData.BATCHCANCELORDERS
+                    send_return.channel = orderChannelData.BATCHCANCELORDERS
                 elif d["op"] == "batch-amend-orders":
-                    ws_info.channel = orderChannelData.BATCHAMENDORDERS
-                ws_info.ord_id = data["ordId"]
-                ws_info.cl_ord_id = data["clOrdId"]
-                ws_info.code = data["sCode"]
-                ws_info.msg = data["sMsg"]
-                await self.listener_ws(ws_info)
+                    send_return.channel = orderChannelData.BATCHAMENDORDERS
+                send_return.ord_id = data["ordId"]
+                send_return.cl_ord_id = data["clOrdId"]
+                send_return.code = data["sCode"]
+                
+                if d["data"][0]["sMsg"] == "Cancellation failed as the order does not exist.":
+                    send_return.msg = cancelOrderError.NOTEXIST
+                elif d["data"][0]["sMsg"] == "Duplicated client order ID":
+                    send_return.msg = orderError.DUPLICATECLIORDID
+                else:
+                    send_return.msg = d["data"][0]["sMsg"]
+                await self.listener_send(send_return)
         return
 
     async def market_coroutine(self):
@@ -1010,7 +1018,7 @@ class okxGateway(baseGateway):
                             # self.log_record('gateway ws info')
                             # self.log_record(res)
                             # after transfer push
-                            await self.ws_info_trans(res)
+                            await self.send_return_trans(res)
 
                         elif 'arg' in res.keys():
                             arg = res['arg']
@@ -1082,7 +1090,7 @@ class okxGateway(baseGateway):
                 # websocket break 之后
                 continue
     
-    def cancel_batch_orders_sync(self, cancel_list: List[cancelOrderSendData]) -> List[wsInfoData]:
+    def cancel_batch_orders_sync(self, cancel_list: List[cancelOrderSendData]) -> List[sendReturnData]:
         post_list = []
         for cancel_order in cancel_list:
             d = {}
@@ -1099,22 +1107,22 @@ class okxGateway(baseGateway):
         ret = []
 
         for data in result['data']:
-            ws_info = wsInfoData()
-            ws_info.gateway_name = self.gateway_name
-            ws_info.account_name = self.account_name
-            ws_info.channel = orderChannelData.BATCHORDERS
+            send_return = sendReturnData()
+            send_return.gateway_name = self.gateway_name
+            send_return.account_name = self.account_name
+            send_return.channel = orderChannelData.BATCHORDERS
             if data["clOrdId"]:
-                ws_info.cl_ord_id = data["clOrdId"]
+                send_return.cl_ord_id = data["clOrdId"]
             if data["ordId"]:
-                ws_info.ord_id = data["ordId"]
+                send_return.ord_id = data["ordId"]
             if data["sCode"]:
-                ws_info.code = data["sCode"]
+                send_return.code = data["sCode"]
             if data["sMsg"]:
-                ws_info.msg = data["sMsg"]
-            ret.append(ws_info)
+                send_return.msg = data["sMsg"]
+            ret.append(send_return)
         return ret
 
-    def cancel_order_sync(self, cancel: cancelOrderSendData) -> wsInfoData:
+    def cancel_order_sync(self, cancel: cancelOrderSendData) -> sendReturnData:
         
         if cancel.ord_id:
             orderId = cancel.ord_id
@@ -1133,7 +1141,7 @@ class okxGateway(baseGateway):
         
         return 
     
-    def send_order_sync(self, order: orderSendData) -> wsInfoData:
+    def send_order_sync(self, order: orderSendData) -> sendReturnData:
         
         if order.px:
             px=str(order.px)
@@ -1146,7 +1154,7 @@ class okxGateway(baseGateway):
             sz=order.sz,
             px=px
         )
-        # result - > ws info
+        # result - > send return info
         return 
 
 

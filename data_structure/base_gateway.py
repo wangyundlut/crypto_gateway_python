@@ -13,7 +13,7 @@ depends on how the main program design
 
 every channel can only add one listener
 in case same info push more then once
-for example, ws info channel, if listener more then one, may cause serious problem
+for example, send return channel, if listener more then one, may cause serious problem
 
 Gateway translate exchange info to local info
 for example
@@ -45,7 +45,7 @@ class baseGateway:
         self.listener_position = None
         self.listener_order = None
         self.listener_fill = None
-        self.listener_ws = None
+        self.listener_send = None
 
         self.rest = None
         self.inst_id_info = {}
@@ -193,8 +193,8 @@ class baseGateway:
     def listener_fill_add(self, func):
         self.listener_fill = func
     
-    def listener_ws_add(self, func):
-        self.listener_ws = func
+    def listener_send_add(self, func):
+        self.listener_send = func
     
     def depth_transfer(self, depth):
         pass
@@ -226,10 +226,10 @@ class baseGateway:
         """
         pass
 
-    def ws_info_trans(self, d: dict):
+    def send_info_trans(self, d: dict):
         pass
 
-    async def ws_info_trans(self, d: dict):
+    async def send_info_trans(self, d: dict):
         pass
     
 

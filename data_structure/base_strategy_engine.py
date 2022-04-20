@@ -3,7 +3,8 @@ from .base_data_struct import(
     accountData,
     positionData,
     orderData,
-    fillData
+    fillData,
+    sendReturnData
 )
 from .base_gateway import baseGateway
 HOURS8=8
@@ -31,7 +32,7 @@ class baseStrategyEngine:
     async def fill_listener(self, fill: fillData):
         pass
 
-    async def ws_listener(self, ws_info: str):
+    async def send_listener(self, send_info: sendReturnData):
         pass
 
    

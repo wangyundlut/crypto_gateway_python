@@ -12,7 +12,7 @@ from decimal import Decimal
 """
 orderStateData, orderSendStateData, orderTypeData, orderSideData
 instTypeData, contractTypeData, instInfoData, depthData, tradeData, klineData
-accountData, orderData, positionData, fillData, orderChannelData, wsInfoData, 
+accountData, orderData, positionData, fillData, orderChannelData, sendReturnData, 
 orderSendData, cancelOrderSendData, amendOrderSendData, orderErrorCodeMsgData
 """
 
@@ -23,27 +23,18 @@ class orderStateData:
     SENDSUCCEED = "send-succeed" # accept by exchange
     SENDFAILED = "send-failed" # send failed, reject by exchange
 
-    PARTIALFILLED = "partial-filled"
-    FILLED = "filled"
-    PARTIALCANCELED = "partial-canceled" # partial-filled then cancel rest
     CANCELING = "canceling" # in exchange, ready to quit
-    CANCELED = "canceled"
+    CANCELSUCCEED = "canceled"
     CANCELFAILED = "cancel-failed"
+
     AMENDING = "amending"
     AMENDSUCCEED = "amend-succeed"
     AMENDFAILED = "amend-failed"
 
-@dataclass
-class orderSendStateData:
-    SENDING = 'sending'
-    SENDSUCCEED = 'send-succeed'
-    SENDFAILED = 'send-failed'
-    CANCELING = 'canceling'
-    CANCELSUCCEED = 'cancel-succeed'
-    CANCELFAILED = 'cancel-failed'
-    AMENDING = 'amending'
-    AMENDSUCCEED = 'amend-succeed'
-    AMENDFAILED = 'amend-failed'
+    PARTIALFILLED = "partial-filled"
+    FILLED = "filled"
+    PARTIALCANCELED = "partial-canceled" # partial-filled then cancel rest
+    
 
 @dataclass
 class orderTypeData:
@@ -61,10 +52,12 @@ class orderSideData:
 @dataclass
 class instTypeData:
     SPOT = "spot"
-    MARGINCROSS = "margin_cross"
-    MARGINISOLATED = "margin_isolated"
+    MARGINCROSS = "cross"
+    MARGINISOLATED = "isolated"
     FUTURES = "futures"
+    # FUTURESISOLATED = "fisolated"
     SWAP = "swap"
+    # SWAPISOLATED = "fswap"
 
 @dataclass
 class contractTypeData:
@@ -117,7 +110,7 @@ class depthData:
     bids_list: list = field(default_factory=list) # [[p1, sz1], [p2, sz2]] bid1, bid2, bid3
 
 @dataclass
-class tradeData: # this is market trade data, not order->trade data, that is fill data
+class marketTradeData: # this is market trade data, not order->trade data, that is fill data
     gateway_name : str = "" # sender, okx_market
     exchange: str = "" # okx
     inst_type: str = "" # instType
@@ -156,11 +149,12 @@ class accountData:
     change_type: str = ""
     ccy: str = ""
     ccy_local: str = "" # exchange + ccy
-    equity: Decimal = 0
-    debt: Decimal = 0 
-    frozen: Decimal = 0
-    cash_balance: Decimal = 0 # equity - debt = cash_balance
-    account_risk: Decimal = 0 # for okx, smaller risker!
+    asset: Decimal = 0 # asset
+    debt: Decimal = 0 # debt
+    equity: Decimal = 0 # equity, netasset
+    frozen: Decimal = 0 # frozen, locked
+    interest: Decimal = 0 # 
+    account_risk: Decimal = 0 # margin / asset, < 1 for ever, more close to 1, more risker!
     update_time_epoch: Decimal = Decimal(int(time.time() * 1000))
     update_time_china: str = ""
 
@@ -257,11 +251,11 @@ class orderChannelData:
     BATCHAMENDORDERS: str =  "batch-amend-orders"
 
 @dataclass
-class wsInfoData:
+class sendReturnData:
     """
     this is order return info
     send order, normally will return ord_id, and msg info
-    this should call orderReturnInfo?
+    this should call sendReturnInfo
     """
     gateway_name : str = ""
     account_name: str = ""
@@ -272,7 +266,8 @@ class wsInfoData:
     ord_state: str = ""
     code: str = "" # error code
     msg: str = "" # error msg
-
+    receive_time: Decimal = Decimal(int(time.time() * 1000))
+    
 
 ################# trade data #################
 
@@ -289,7 +284,7 @@ class orderSendData:
     sz: Decimal = 0 # how many ccy, (sz=0.1, ccy=btc)  (sz=100, ccy=USD)
     ccy: str = "" 
     ws_id: str = ""
-
+    send_time: Decimal = Decimal(int(time.time() * 1000))
 
 @dataclass
 class cancelOrderSendData:
@@ -299,6 +294,7 @@ class cancelOrderSendData:
     ord_id: str = ""
     cl_ord_id: str = ""
     ws_id: str = ""
+    send_time: Decimal = Decimal(int(time.time() * 1000))
 
 @dataclass
 class amendOrderSendData:
@@ -311,6 +307,7 @@ class amendOrderSendData:
     new_px: Decimal = 0
     ccy: str = ""
     ws_id: str = ""
+    send_time: Decimal = Decimal(int(time.time() * 1000))
     
 
     
