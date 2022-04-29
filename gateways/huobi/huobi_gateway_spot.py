@@ -880,7 +880,6 @@ class huobiGateway:
                 continue
 
     async def coroutine_trade(self):
-        
         while True:
             try:
                 params_sign = create_signature_v2(self.__api_key, "GET", SPOT_REST_HOST, "/ws/v2", self.__secret_key)

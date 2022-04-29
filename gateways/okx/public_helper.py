@@ -7,15 +7,9 @@ from crypto_gateway_python.data_structure.base_data_struct import(
     instTypeEnum,
     instInfoData,
     contractTypeEnum,
+)
+from crypto_rest_python.okx.sync_rest.consts import EXCHANGE_NAME
 
-)
-from crypto_rest_python.okx.sync_rest.consts import (
-    EXCHANGE_NAME,
-    WS_PRI_URL,
-    WS_PRI_URL_SIMULATION,
-    WS_PUB_URL,
-    WS_PUB_URL_SIMULATION,
-)
 HOURS8 = 8
 
 ##################basic log and async function##############################

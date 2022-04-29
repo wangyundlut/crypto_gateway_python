@@ -31,4 +31,7 @@ class amendOrderError:
     CLIORDERID = "Either client order ID or order ID is required."
     
 
-
+@dataclass
+class exchangeError:
+    SERVICE = "service is upgrade now, please try again later"
+    

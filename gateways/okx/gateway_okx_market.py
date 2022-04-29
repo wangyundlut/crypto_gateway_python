@@ -14,22 +14,17 @@ from crypto_gateway_python.data_structure.base_data_struct import(
     subChannelEnum,
     timeOutData,
     instTypeEnum,
-    instInfoData,
-    contractTypeEnum,
     subData,
 )
 from crypto_gateway_python.gateways.okx.public_helper import (
     okx_get_inst_id_local,
     okx_get_account_ccy,
     okx_load_exchange_info,
-    helper_get_price,
-    okx_sign
+    helper_get_price
 )
 from crypto_rest_python.okx.sync_rest.rest_v5 import okx_api_v5
 from crypto_rest_python.okx.sync_rest.consts import (
     EXCHANGE_NAME,
-    WS_PRI_URL,
-    WS_PRI_URL_SIMULATION,
     WS_PUB_URL,
     WS_PUB_URL_SIMULATION,
 )
