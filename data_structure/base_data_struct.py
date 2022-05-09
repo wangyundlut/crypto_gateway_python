@@ -363,6 +363,7 @@ class cancelOrderSendData:
     inst_type: str = ""
     inst_id: str = ""
     inst_id_local: str = ""
+    side: orderSideEnum = ""
     ord_id: str = ""
     cl_ord_id: str = ""
     ws_id: str = ""

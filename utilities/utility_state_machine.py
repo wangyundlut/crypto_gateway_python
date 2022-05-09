@@ -1,7 +1,7 @@
 
 from transitions import Machine
 
-class helperStateMachine:
+class helperStateMachine(object):
 
     def __init__(self, name):
         self.name = name

@@ -1,4 +1,5 @@
 import asyncio
+from socket import timeout
 import zlib
 import websockets
 import json
@@ -17,6 +18,7 @@ from crypto_gateway_python.data_structure.base_data_struct import(
     instInfoData,
     contractTypeEnum,
     subData,
+    wsBreakData,
 )
 from crypto_gateway_python.gateways.binance.public_helper import (
     bn_get_inst_id_local,
@@ -100,21 +102,29 @@ class binanceGatewayMarketSpot(baseGatewayMarket):
 
         while True:
             try:
-
+                self.helper_log_record(f"spot market connect..")
                 async with websockets.connect(url + book_url) as self.ws:
                     
                     while True:
                         try:
-                            res = await asyncio.wait_for(self.ws.recv(), timeout=10)
+                            res = await asyncio.wait_for(self.ws.recv(), timeout=60)
                         except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed) as e:
+                            tud = timeOutData()
+                            tud.gateway_name = self.gateway_name
+                            tud.exchange_name = self.exchange_name
+                            tud.event = "market channel timeout"
+                            tud.time_delay = 60
+                            if self.listener_time_out:
+                                self.listener_time_out(tud)
                             # TODO time out
-                            print(f"{datetime.now()} {self.exchange_name} market channel not receive for 60 seconds, 正在重连…… error: {e}")
+                            self.helper_log_record(f" market channel not receive for 60 seconds, 正在重连…… error: {e}")
                             raise Exception(f"long time no receive")
 
                         res = json.loads(res)
                         if 'stream' in res:
                             if not self.gateway_ready:
                                 self.gateway_ready = True
+                                self.helper_log_record(f"spot market connect succeed!")
                             stream = res['stream']
                             if 'bookTicker' in stream:
                                 data = res['data']
@@ -136,7 +146,14 @@ class binanceGatewayMarketSpot(baseGatewayMarket):
                     pass
                 else:
                     self.helper_log_record(f"{self.exchange_name}, {self.gateway_name}, subscribe_market_data error: {e}")
-                # print(timestamp + f" subscribe_market_data error: {e}")
+                    ws_break = wsBreakData()
+                    ws_break.gateway_name = self.gateway_name
+                    ws_break.exchange_name = self.exchange_name
+                    ws_break.break_reason = f"market channel break: {e}"
+                    ws_break.break_time_epoch = int(time() * 1000)
+                    ws_break.break_time_china = dt_epoch_to_china_str(ws_break.break_time_epoch)
+                    if self.listener_ws_break:
+                        self.listener_ws_break(ws_break)
                 self.gateway_ready = False
                 continue
 

@@ -235,7 +235,7 @@ class baseGatewayTrade(baseGateway):
     def helper_get_order_info(self, ordId: str="", clOrdId: str="") -> orderData:
         raise NotImplementedError
 
-    def helper_get_account(self, inst_id: str, inst_type: str="") -> accountData:
+    def helper_get_account(self, ccy, inst_id: str, inst_type: str="") -> accountData:
         raise NotImplementedError
     
     def helper_get_position(self, inst_id: str, inst_type: str="") -> positionData:
@@ -277,13 +277,14 @@ class baseGatewayTrade(baseGateway):
     async def send_data_time_pass(self):
         # when send order, cancel order, or amend order, 
         # self.check_time_out_data will record send time base on clOrdId
+        del_clordids = []
         while True:
             await asyncio.sleep(1)
             try:
                 for clordId, send_time in self.check_time_out_data.items():
                     time_delay = int(time.time() * 1000) - send_time
-                    if time_delay > 1000:
-
+                    if time_delay > 5000:
+                        del_clordids.append(clordId)
                         data = timeOutData()
                         data.gateway_name = self.gateway_name
                         data.exchange_name = self.exchange_name
@@ -294,6 +295,9 @@ class baseGatewayTrade(baseGateway):
                         
                         if self.listener_time_out:
                             self.listener_time_out(data)
+                for clordId in del_clordids:
+                    del self.check_time_out_data[clordId]
+                del_clordids = []
 
             except Exception as e:
                 self.helper_log_record(f"send_data_time_pass error: {e}")

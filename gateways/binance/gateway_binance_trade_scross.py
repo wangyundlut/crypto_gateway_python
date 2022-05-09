@@ -22,16 +22,17 @@ from crypto_gateway_python.utilities.utility_decimal import round_to
 from crypto_gateway_python.utilities.utility_time import dt_china_now_str, dt_epoch_to_china_str, dt_epoch_utz_now
 from crypto_gateway_python.data_structure.base_gateway import baseGatewayTrade
 from crypto_gateway_python.data_structure.base_data_struct import(
-    accountData,
-    fillData,
     orderStateEnum,
     orderTypeEnum,
+    orderChannelEnum,
+    instTypeEnum,
+    accountData,
+    fillData,
     positionData,
     orderData,
     sendReturnData,
-    orderChannelEnum,
-    instTypeEnum,
     timeOutData,
+    wsBreakData,
 )
 from crypto_gateway_python.data_structure.base_error import (
     cancelOrderError,
@@ -52,14 +53,38 @@ HOURS8=8
 ZERODECIMAL = Decimal("0")
 
 
-
-
 class binanceGatewayTrade(baseGatewayTrade):
     def __init__(self, gateway_name='') -> None:
         super(binanceGatewayTrade, self).__init__(gateway_name)
         self.exchange_name = EXCHANGE_NAME
         self.rate_filters = {}
         self.listenKey = None
+
+        """
+        /api/ 与 /sapi/ 接口限频说明
+        /api/*接口和 /sapi/*接口采用两套不同的访问限频规则, 两者互相独立。
+
+        /api/*的接口相关：
+
+        按IP和按UID(account)两种模式分别统计, 两者互相独立。
+        以 /api/*开头的接口按IP限频，且所有接口共用每分钟1200限制。
+        每个请求将包含一个 X-MBX-USED-WEIGHT-(intervalNum)(intervalLetter)的头，包含当前IP所有请求的已使用权重。
+        每个成功的下单回报将包含一个X-MBX-ORDER-COUNT-(intervalNum)(intervalLetter)的头，其中包含当前账户已用的下单限制数量。
+        /sapi/*的接口相关：
+
+        按IP和按UID(account)两种模式分别统计, 两者互相独立。
+        以/sapi/*开头的接口采用单接口限频模式。按IP统计的权重单接口权重总额为每分钟12000；按照UID统计的单接口权重总额是每分钟180000。
+        每个接口会标明是按照IP或者按照UID统计, 以及相应请求一次的权重值。
+        按照IP统计的接口, 请求返回头里面会包含X-SAPI-USED-IP-WEIGHT-1M=<value>, 包含当前IP所有请求已使用权重。
+        按照UID统计的接口, 请求返回头里面会包含X-SAPI-USED-UID-WEIGHT-1M=<value>, 包含当前账户所有已用的UID权重。
+        """
+
+        self.orders_max_10seconds = 50
+        self.ip_limit_1m = 0
+        self.uid_limit_1m = 0
+        self.ip_limit_1m_max = 12000
+        self.uid_limit_1m_max = 180000
+
     
     ##################basic log and async function##############################
     
@@ -133,7 +158,7 @@ class binanceGatewayTrade(baseGatewayTrade):
         return order
         
     def helper_get_account(self, ccy, inst_id: str, inst_type: str="") -> accountData:
-        inst_id_ccy = self.helper_get_account_ccy(ccy)
+        inst_id_ccy = self.helper_get_account_ccy(ccy, inst_id, inst_type)
         if inst_id_ccy in self.account_data:
             return self.account_data[inst_id_ccy]
         
@@ -150,7 +175,7 @@ class binanceGatewayTrade(baseGatewayTrade):
         for balance in balances:
             if balance["asset"].lower() == ccy.lower():
                 acc.ccy = balance["asset"]
-                acc.ccy_local = self.helper_get_account_ccy(balance["asset"], instTypeEnum.MARGINCROSS)
+                acc.ccy_local = self.helper_get_account_ccy(balance["asset"], inst_id, instTypeEnum.MARGINCROSS)
 
                 acc.asset = Decimal(balance["borrowed"]) + Decimal(balance["netAsset"])
                 acc.debt = Decimal(balance["borrowed"])
@@ -171,7 +196,12 @@ class binanceGatewayTrade(baseGatewayTrade):
 
     ##################exchange helper##############################
     def listen_key_call_back(self, request: Request):
-        self.helper_log_record(f"listen key {request.response.json()}")
+        listenKey = request.response.json()["listenKey"]
+        if listenKey != self.listenKey:
+            self.helper_log_record(f"listen key diff, re connect ws..")
+            self.gateway_ready = False
+            self.ws = None
+        
         return
 
     async def extend_listen_key(self):
@@ -219,12 +249,13 @@ class binanceGatewayTrade(baseGatewayTrade):
                 listenKey = getListenKey()
                 self.listenKey = listenKey
 
-                async with websockets.connect(WS_SPOT_URL + listenKey) as ws:
-                    
+                async with websockets.connect(WS_SPOT_URL + "/stream?streams=" + listenKey) as ws:
+                    self.ws = ws
                     self.helper_log_record(f"cross_websocket_with_login connect.. ")
                     if not self.gateway_ready:
                         self.gateway_ready = True
-                        
+                        self.helper_log_record(f"cross_websocket_with_login connect succeed!")
+
                     while True:
                         try:
                             res = await asyncio.wait_for(ws.recv(), timeout=600)
@@ -244,10 +275,12 @@ class binanceGatewayTrade(baseGatewayTrade):
                             raise Exception('ConnectionClosed')
                         
                         res = json.loads(res)
+                    
+                        if "stream" in res:
+                            res = res["data"]
 
                         if res['e'] == 'outboundAccountPosition':
-                            # print(res["e"])
-                            # print(res)
+                            
                             for balance in res["B"]:
                                 acc = accountData()
                                 acc.gateway_name = self.gateway_name
@@ -273,6 +306,7 @@ class binanceGatewayTrade(baseGatewayTrade):
                             print(res["e"])
                             print(res)
                         elif res['e'] == 'executionReport':
+                            # self.helper_log_record(f"order: {res['X']} {res}")
                             inst_id = res["s"]
                             inst_id_local = self.helper_get_inst_id_local(inst_id, instTypeEnum.MARGINCROSS)
                             info = self.inst_id_info[inst_id_local]
@@ -297,11 +331,15 @@ class binanceGatewayTrade(baseGatewayTrade):
                                 order_data.state = orderStateEnum.FILLED
                             elif res["X"] == "CANCELED":
                                 order_data.state = orderStateEnum.CANCELSUCCEED
+                                order_data.cl_ord_id = res["C"]
                             elif res["X"] == "REJECTED":
                                 order_data.state = orderStateEnum.SENDFAILED
                             elif res["X"] == "EXPIRED":
                                 order_data.state = orderStateEnum.CANCELSUCCEED
                             
+                            if order_data.cl_ord_id in self.check_time_out_data.keys():
+                                del self.check_time_out_data[order_data.cl_ord_id]
+
                             order_data.px = ZERODECIMAL if not res['p'] else Decimal(res['p'])
                             order_data.sz = ZERODECIMAL if not res['q'] else Decimal(res['q'])
                             order_data.pnl = ZERODECIMAL 
@@ -369,7 +407,7 @@ class binanceGatewayTrade(baseGatewayTrade):
                                 fill.time_china = order_data.update_time_china
                                 if self.listener_fill:
                                     self.listener_fill(fill)
-                                    
+
                             if self.listener_order:
                                 self.listener_order(order_data)
                                 
@@ -378,8 +416,23 @@ class binanceGatewayTrade(baseGatewayTrade):
                             print(res)
 
             except Exception as e:
+                if 'cannot schedule new FUTURES after shutdown' in str(e):
+                    pass
+                elif 'no running event loop' in str(e):
+                    pass
+                else:
+                    self.helper_log_record(f"ws scross error: {e}")
+                    
+                    ws_break = wsBreakData()
+                    ws_break.gateway_name = self.gateway_name
+                    ws_break.exchange_name = self.exchange_name
+                    ws_break.break_reason = f"scross channel break: {e}"
+                    ws_break.break_time_epoch = int(time() * 1000)
+                    ws_break.break_time_china = dt_epoch_to_china_str(ws_break.break_time_epoch)
+                    if self.listener_ws_break:
+                        self.listener_ws_break(ws_break)
+
                 self.gateway_ready = False
-                self.helper_log_record(" scross_websocket_with_login 连接断开，正在重连……" + str(e))
                 continue
 
     async def ws_receive(self, request: Request):
@@ -389,6 +442,18 @@ class binanceGatewayTrade(baseGatewayTrade):
         send_return.account_name = self.account_name
         response = request.response
         data = response.json()
+
+        # self.helper_log_record(response.header)
+
+        if "X-SAPI-USED-IP-WEIGHT-1M" in response.header:
+            self.ip_limit_1m = int(response.header["X-SAPI-USED-IP-WEIGHT-1M"])
+
+        if "X-SAPI-USED-UID-WEIGHT-1M" in response.header:
+            self.uid_limit_1m = int(response.header["X-SAPI-USED-UID-WEIGHT-1M"])
+
+        self.orders_10seconds = 0
+        self.orders_1day = 0
+        self.request_weight = 0
 
         # post order
         if request.method == "post":
@@ -411,8 +476,15 @@ class binanceGatewayTrade(baseGatewayTrade):
                 send_return.msg = data["msg"]
                 if send_return.code == -1013:
                     send_return.msg = orderError.MINORDERSIZE
-                elif send_return.code == -2010:
+                elif send_return.code == -2010 and send_return.msg == "Order would immediately match and take.":
                     send_return.msg = orderError.POSTONLYPRICEERROR
+                elif send_return.code == -1015:
+                    send_return.msg= orderError.FREQUENT
+                elif send_return.code == -2010 and send_return.msg == "Duplicate order sent.":
+                    send_return.msg = orderError.DUPLICATECLIORDID
+                elif send_return.code == -1021 and send_return.msg == "Timestamp for this request is outside of the recvWindow.":
+                    send_return.msg = orderError.TIMEOUT
+                
                 send_return.ord_state = orderStateEnum.SENDFAILED
 
         elif request.method == "delete":
@@ -426,15 +498,17 @@ class binanceGatewayTrade(baseGatewayTrade):
                 send_return.ord_state = orderStateEnum.CANCELFAILED
         else:
             pass
+        
+        if send_return.cl_ord_id in self.check_time_out_data.keys():
+            del self.check_time_out_data[send_return.cl_ord_id]
 
         if self.listener_send_return:
-
             self.listener_send_return(send_return)
 
     def gateway_start(self):
         asyncio.run_coroutine_threadsafe(self.gateway_async(), self.loop)
         asyncio.run_coroutine_threadsafe(self.send_data_time_pass(), self.loop)
-        asyncio.run_coroutine_threadsafe(self.extend_listen_key())
+        asyncio.run_coroutine_threadsafe(self.extend_listen_key(), self.loop)
 
     ##################trade engine ##############################
     
@@ -523,6 +597,12 @@ class binanceGatewayTrade(baseGatewayTrade):
     def cancel_batch_orders_sync(self, cancel_list: List[cancelOrderSendData]):
         result_list = []
         for cancel in cancel_list:
+            # binance can cancel order base on symbol
+            if cancel.side:
+                result = self.sync_scross.lever_cancel_symbol_order(cancel.inst_id.upper())
+                result_list.append(result)
+                continue
+                
             if cancel.ord_id:
                 result = self.sync_scross.lever_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id)
             elif cancel.cl_ord_id:
@@ -550,7 +630,6 @@ class binanceGatewayTrade(baseGatewayTrade):
             price=str(order.px) if order.px else "", 
             newClientOrderId=order.cl_ord_id,
         )
-    
         return 
 
     def cancel_order_sync(self, cancel: cancelOrderSendData):

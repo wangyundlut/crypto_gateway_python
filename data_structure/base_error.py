@@ -11,7 +11,9 @@ class orderError:
     MINORDERSIZE = "Order amount should be greater than the min available amount."
     MULTIPLESIZE = "Order count should be the integer multiples of the lot size"
     DUPLICATECLIORDID = "Duplicated client order ID"
-    POSTONLYPRICEERROR = "Order would immediately match and take"
+    POSTONLYPRICEERROR = "Order would immediately match and take."
+
+    TIMEOUT = "Timestamp for this request is outside of the recvWindow."
 
 @dataclass
 class cancelOrderError:
