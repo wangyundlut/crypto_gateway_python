@@ -427,7 +427,7 @@ class binanceGatewayTrade(baseGatewayTrade):
                     ws_break.gateway_name = self.gateway_name
                     ws_break.exchange_name = self.exchange_name
                     ws_break.break_reason = f"scross channel break: {e}"
-                    ws_break.break_time_epoch = int(time() * 1000)
+                    ws_break.break_time_epoch = int(time.time() * 1000)
                     ws_break.break_time_china = dt_epoch_to_china_str(ws_break.break_time_epoch)
                     if self.listener_ws_break:
                         self.listener_ws_break(ws_break)
