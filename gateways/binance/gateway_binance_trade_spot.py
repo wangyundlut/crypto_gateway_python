@@ -15,22 +15,22 @@ from typing import Dict, List
 from crypto_gateway_python.utilities.utility_time import dt_epoch_to_china_str, dt_epoch_utz_now
 from crypto_rest_python.binance.sync_rest.spot_api import SpotAPI as sync_spot
 from crypto_rest_python.binance.async_rest.async_spot import asyncBinanceSpot as async_spot
-from crypto_rest_python.binance.async_rest.client import RestClient, Response, Request
+from crypto_rest_python.async_rest_client import RestClient, Response, Request
 from crypto_gateway_python.data_structure.base_gateway import baseGateway
 from crypto_gateway_python.data_structure.base_data_struct import(
     depthData,
     accountData,
     fillData,
-    orderStateData,
-    orderTypeData,
+    orderStateEnum,
+    orderTypeEnum,
     positionData,
     orderData,
     sendReturnData,
-    orderChannelData,
-    instTypeData,
+    orderChannelEnum,
+    instTypeEnum,
     instInfoData,
-    orderSideData,
-    contractTypeData
+    orderSideEnum,
+    contractTypeEnum
 )
 from crypto_gateway_python.data_structure.base_error import (
     cancelOrderError,
@@ -144,7 +144,7 @@ class binanceGateway(baseGateway):
             if filterType["filterType"] == "LOT_SIZE":
                 info.min_order_sz = Decimal(filterType["minQty"])
 
-        for inst_type in [instTypeData.SPOT, instTypeData.MARGINCROSS, instTypeData.MARGINISOLATED]:
+        for inst_type in [instTypeEnum.SPOT, instTypeEnum.MARGINCROSS, instTypeEnum.MARGINISOLATED]:
             info_ = deepcopy(info)
             info_.inst_type = inst_type
             info_.inst_id = data["symbol"]
@@ -164,7 +164,7 @@ class binanceGateway(baseGateway):
         acc.gateway_name = self.gateway_name
         acc.account_name = self.account_name
         acc.exchange = self.exchange_name
-        if inst_type == instTypeData.SPOT:
+        if inst_type == instTypeEnum.SPOT:
 
             result = self.sync_spot.spot_get_account()
             balances = result['balances']
@@ -175,7 +175,7 @@ class binanceGateway(baseGateway):
                 if balance["asset"].lower() == ccy.lower():
                     
                     acc.ccy = balance["asset"]
-                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeData.SPOT)
+                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeEnum.SPOT)
                     
                     acc.asset = Decimal(balance["free"]) + Decimal(balance["locked"])
                     acc.debt = Decimal(0)
@@ -189,15 +189,15 @@ class binanceGateway(baseGateway):
                     acc.update_time_epoch = Decimal(dt_epoch_utz_now())
                     acc.update_time_china = dt_epoch_to_china_str(acc.update_time_epoch)
                     return acc
-        elif inst_type == instTypeData.MARGINCROSS:
+        elif inst_type == instTypeEnum.MARGINCROSS:
             result = self.sync_spot.lever_get_account()
             balances  = result['userAssets']
-            inst_id_local = self.get_inst_id_local(inst_id, instTypeData.MARGINCROSS)
+            inst_id_local = self.get_inst_id_local(inst_id, instTypeEnum.MARGINCROSS)
             info = self.instrument_info[inst_id_local]
             for balance in balances:
                 if balance["asset"].lower() == ccy.lower():
                     acc.ccy = balance["asset"]
-                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeData.MARGINCROSS)
+                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeEnum.MARGINCROSS)
 
                     acc.asset = Decimal(balance["borrowed"]) + Decimal(balance["netAsset"])
                     acc.debt = Decimal(balance["borrowed"])
@@ -268,10 +268,10 @@ class binanceGateway(baseGateway):
         scross_start = False
         for inst_id_local in self.inst_id_set:
             info = self.instrument_info[inst_id_local]
-            if info.inst_type == instTypeData.SPOT and spot_start == False:
+            if info.inst_type == instTypeEnum.SPOT and spot_start == False:
                 asyncio.run_coroutine_threadsafe(self.spot_websocket_with_login(), self.loop)
                 spot_start = True
-            if info.inst_type == instTypeData.MARGINCROSS and scross_start == False:
+            if info.inst_type == instTypeEnum.MARGINCROSS and scross_start == False:
                 asyncio.run_coroutine_threadsafe(self.cross_websocket_with_login(), self.loop)
                 scross_start = True
                 
@@ -461,31 +461,31 @@ class binanceGateway(baseGateway):
                             order_data.cl_ord_id = res['c']
                             
                             if res["X"] == "NEW":
-                                order_data.state = orderStateData.SENDSUCCEED
+                                order_data.state = orderStateEnum.SENDSUCCEED
                             elif res["X"] == "PARTIALLY_FILLED":
-                                order_data.state = orderStateData.PARTIALFILLED
+                                order_data.state = orderStateEnum.PARTIALFILLED
                             elif res["X"] == "FILLED":
-                                order_data.state = orderStateData.FILLED
+                                order_data.state = orderStateEnum.FILLED
                             elif res["X"] == "CANCELED":
-                                order_data.state = orderStateData.CANCELSUCCEED
+                                order_data.state = orderStateEnum.CANCELSUCCEED
                             elif res["X"] == "REJECTED":
-                                order_data.state = orderStateData.SENDFAILED
+                                order_data.state = orderStateEnum.SENDFAILED
                             elif res["X"] == "EXPIRED":
-                                order_data.state = orderStateData.CANCELSUCCEED
+                                order_data.state = orderStateEnum.CANCELSUCCEED
                             
                             order_data.px = ZERODECIMAL if not res['p'] else Decimal(res['p'])
                             order_data.sz = ZERODECIMAL if not res['q'] else Decimal(res['q'])
                             order_data.pnl = ZERODECIMAL 
                             if res["o"] == "LIMIT":
-                                order_data.ord_type = orderTypeData.LIMIT
+                                order_data.ord_type = orderTypeEnum.LIMIT
                             elif res["o"] == "MARKET":
-                                order_data.ord_type = orderTypeData.MARKET
+                                order_data.ord_type = orderTypeEnum.MARKET
                             elif res["o"] == "LIMIT_MAKER":
-                                order_data.ord_type = orderTypeData.POSTONLY
+                                order_data.ord_type = orderTypeEnum.POSTONLY
                             elif res["f"] == "IOC":
-                                order_data.ord_type = orderTypeData.IOC
+                                order_data.ord_type = orderTypeEnum.IOC
                             elif res["f"] == "FOK":
-                                order_data.ord_type = orderTypeData.FOK
+                                order_data.ord_type = orderTypeEnum.FOK
                             order_data.side = res['S'].lower()
 
                             order_data.fill_px = ZERODECIMAL if not res['L'] else Decimal(res['L'])
@@ -571,12 +571,12 @@ class binanceGateway(baseGateway):
         def getAccountFromRest():
             result = self.sync_spot.lever_get_account()
             balances  = result['userAssets']
-            inst_id_local = self.get_inst_id_local(inst_id, instTypeData.MARGINCROSS)
+            inst_id_local = self.get_inst_id_local(inst_id, instTypeEnum.MARGINCROSS)
             info = self.instrument_info[inst_id_local]
             for balance in balances:
                 if Decimal(balance["netAsset"]) != Decimal(0):
                     acc.ccy = balance["asset"]
-                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeData.MARGINCROSS)
+                    acc.ccy_local = self.get_ccy_local(balance["asset"], instTypeEnum.MARGINCROSS)
 
                     acc.asset = Decimal(balance["borrowed"]) + Decimal(balance["netAsset"])
                     acc.debt = Decimal(balance["borrowed"])
@@ -632,7 +632,7 @@ class binanceGateway(baseGateway):
                                 acc.account_name = self.account_name
                                 acc.exchange = self.exchange_name
                                 acc.ccy = balance["a"]
-                                acc.ccy_local = self.get_ccy_local(balance["a"], instTypeData.MARGINCROSS)
+                                acc.ccy_local = self.get_ccy_local(balance["a"], instTypeEnum.MARGINCROSS)
                                 
                                 acc.asset = Decimal(balance["f"]) + Decimal(balance["l"])
                                 acc.debt = Decimal(0)
@@ -652,7 +652,7 @@ class binanceGateway(baseGateway):
                             print(res)
                         elif res['e'] == 'executionReport':
                             inst_id = res["s"]
-                            inst_id_local = self.get_inst_id_local(inst_id, instTypeData.MARGINCROSS)
+                            inst_id_local = self.get_inst_id_local(inst_id, instTypeEnum.MARGINCROSS)
                             info = self.instrument_info[inst_id_local]
                             ZERODECIMAL = Decimal(0)
                             order_data = orderData()
@@ -668,31 +668,31 @@ class binanceGateway(baseGateway):
                             order_data.cl_ord_id = res['c']
                             
                             if res["X"] == "NEW":
-                                order_data.state = orderStateData.SENDSUCCEED
+                                order_data.state = orderStateEnum.SENDSUCCEED
                             elif res["X"] == "PARTIALLY_FILLED":
-                                order_data.state = orderStateData.PARTIALFILLED
+                                order_data.state = orderStateEnum.PARTIALFILLED
                             elif res["X"] == "FILLED":
-                                order_data.state = orderStateData.FILLED
+                                order_data.state = orderStateEnum.FILLED
                             elif res["X"] == "CANCELED":
-                                order_data.state = orderStateData.CANCELSUCCEED
+                                order_data.state = orderStateEnum.CANCELSUCCEED
                             elif res["X"] == "REJECTED":
-                                order_data.state = orderStateData.SENDFAILED
+                                order_data.state = orderStateEnum.SENDFAILED
                             elif res["X"] == "EXPIRED":
-                                order_data.state = orderStateData.CANCELSUCCEED
+                                order_data.state = orderStateEnum.CANCELSUCCEED
                             
                             order_data.px = ZERODECIMAL if not res['p'] else Decimal(res['p'])
                             order_data.sz = ZERODECIMAL if not res['q'] else Decimal(res['q'])
                             order_data.pnl = ZERODECIMAL 
                             if res["o"] == "LIMIT":
-                                order_data.ord_type = orderTypeData.LIMIT
+                                order_data.ord_type = orderTypeEnum.LIMIT
                             elif res["o"] == "MARKET":
-                                order_data.ord_type = orderTypeData.MARKET
+                                order_data.ord_type = orderTypeEnum.MARKET
                             elif res["o"] == "LIMIT_MAKER":
-                                order_data.ord_type = orderTypeData.POSTONLY
+                                order_data.ord_type = orderTypeEnum.POSTONLY
                             elif res["f"] == "IOC":
-                                order_data.ord_type = orderTypeData.IOC
+                                order_data.ord_type = orderTypeEnum.IOC
                             elif res["f"] == "FOK":
-                                order_data.ord_type = orderTypeData.FOK
+                                order_data.ord_type = orderTypeEnum.FOK
                             order_data.side = res['S'].lower()
 
                             order_data.fill_px = ZERODECIMAL if not res['L'] else Decimal(res['L'])
@@ -781,10 +781,10 @@ class binanceGateway(baseGateway):
                     send_return.cl_ord_id = value
         
         if request.method == "post":
-            send_return.channel = orderChannelData.ORDER
+            send_return.channel = orderChannelEnum.ORDER
             if response.status_code // 100 == 2:
                 send_return.ord_id = str(data["orderId"])
-                send_return.ord_state = orderStateData.SENDSUCCEED
+                send_return.ord_state = orderStateEnum.SENDSUCCEED
             elif "code" in data:
                 send_return.code = data["code"]
                 send_return.msg = data["msg"]
@@ -792,17 +792,17 @@ class binanceGateway(baseGateway):
                     send_return.msg = orderError.MINORDERSIZE
                 elif send_return.code == -2010:
                     send_return.msg = orderError.POSTONLYPRICEERROR
-                send_return.ord_state = orderStateData.SENDFAILED
+                send_return.ord_state = orderStateEnum.SENDFAILED
 
         elif request.method == "delete":
-            send_return.channel = orderChannelData.CANCELORDER
+            send_return.channel = orderChannelEnum.CANCELORDER
             if response.status_code // 100 == 2:
                 send_return.ord_id = str(data["orderId"])
-                send_return.ord_state = orderStateData.CANCELSUCCEED
+                send_return.ord_state = orderStateEnum.CANCELSUCCEED
             elif "code" in data:
                 if send_return.code == -2011:
                     send_return.msg = cancelOrderError.NOTEXIST
-                send_return.ord_state = orderStateData.CANCELFAILED
+                send_return.ord_state = orderStateEnum.CANCELFAILED
         else:
             pass
         if self.listener_send:
@@ -821,7 +821,7 @@ class binanceGateway(baseGateway):
         elif order.ord_type == "post_only":
             type_ = "LIMIT_MAKER"
             timeInForce = None
-        if order.inst_type.lower() == instTypeData.SPOT:
+        if order.inst_type.lower() == instTypeEnum.SPOT:
             self.async_spot.spot_post_order(
                 symbol=order.inst_id, 
                 side=order.side.upper(), 
@@ -833,7 +833,7 @@ class binanceGateway(baseGateway):
                 cb=self.ws_receive,
                 callback_method="async"
             )
-        elif order.inst_type.lower() == instTypeData.MARGINCROSS:
+        elif order.inst_type.lower() == instTypeEnum.MARGINCROSS:
             self.async_spot.lever_post_order(
                 symbol=order.inst_id, 
                 side=order.side.upper(), 
@@ -858,7 +858,7 @@ class binanceGateway(baseGateway):
             elif order.ord_type == "fok":
                 type_ = "LIMIT"
                 timeInForce = "FOK"
-            if order.inst_type.lower() == instTypeData.SPOT:
+            if order.inst_type.lower() == instTypeEnum.SPOT:
 
                 self.async_spot.spot_post_order(
                     symbol=order.inst_id, 
@@ -871,7 +871,7 @@ class binanceGateway(baseGateway):
                     cb=self.ws_receive,
                     callback_method="async"
                 )
-            elif order.inst_type.lower() == instTypeData.MARGINCROSS:
+            elif order.inst_type.lower() == instTypeEnum.MARGINCROSS:
                 self.async_spot.lever_post_order(
                     symbol=order.inst_id, 
                     side=order.side.upper(), 
@@ -885,12 +885,12 @@ class binanceGateway(baseGateway):
                 )
         
     def cancel_order(self, cancel: cancelOrderSendData):
-        if cancel.inst_type.lower() == instTypeData.SPOT:
+        if cancel.inst_type.lower() == instTypeEnum.SPOT:
             if cancel.ord_id:
                 self.async_spot.spot_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id, cb=self.ws_receive, callback_method="async")
             elif cancel.cl_ord_id:
                 self.async_spot.spot_cancel_order(cancel.inst_id.upper(), origClientOrderId=cancel.cl_ord_id, cb=self.ws_receive, callback_method="async")
-        elif cancel.inst_type.lower() == instTypeData.MARGINCROSS:
+        elif cancel.inst_type.lower() == instTypeEnum.MARGINCROSS:
             if cancel.ord_id:
                 self.async_spot.lever_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id, cb=self.ws_receive, callback_method="async")
             elif cancel.cl_ord_id:
@@ -900,12 +900,12 @@ class binanceGateway(baseGateway):
     
     def cancel_batch_order(self, cancel_list: List[cancelOrderSendData]):
         for cancel in cancel_list:
-            if cancel.inst_type.lower() == instTypeData.SPOT:
+            if cancel.inst_type.lower() == instTypeEnum.SPOT:
                 if cancel.ord_id:
                     self.async_spot.spot_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id, cb=self.ws_receive, callback_method="async")
                 elif cancel.cl_ord_id:
                     self.async_spot.spot_cancel_order(cancel.inst_id.upper(), origClientOrderId=cancel.cl_ord_id, cb=self.ws_receive, callback_method="async")
-            elif cancel.inst_type.lower() == instTypeData.MARGINCROSS:
+            elif cancel.inst_type.lower() == instTypeEnum.MARGINCROSS:
                 if cancel.ord_id:
                     self.async_spot.lever_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id, cb=self.ws_receive, callback_method="async")
                 elif cancel.cl_ord_id:
@@ -915,13 +915,13 @@ class binanceGateway(baseGateway):
     def cancel_batch_orders_sync(self, cancel_list: List[cancelOrderSendData]):
         result_list = []
         for cancel in cancel_list:
-            if cancel.inst_type.lower() == instTypeData.SPOT:
+            if cancel.inst_type.lower() == instTypeEnum.SPOT:
                 if cancel.ord_id:
                     result = self.sync_spot.spot_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id)
                 elif cancel.cl_ord_id:
                     result = self.sync_spot.spot_cancel_order(cancel.inst_id.upper(), origClientOrderId=cancel.cl_ord_id)
                 result_list.append(result)
-            elif cancel.inst_type.lower() == instTypeData.MARGINCROSS:
+            elif cancel.inst_type.lower() == instTypeEnum.MARGINCROSS:
                 if cancel.ord_id:
                     result = self.sync_spot.lever_cancel_order(cancel.inst_id.upper(), orderId=cancel.ord_id)
                 elif cancel.cl_ord_id:
@@ -939,7 +939,7 @@ class binanceGateway(baseGateway):
         elif order.ord_type == "fok":
             type_ = "LIMIT"
             timeInForce = "FOK"
-        if order.inst_type.lower() == instTypeData.SPOT:
+        if order.inst_type.lower() == instTypeEnum.SPOT:
             result = self.sync_spot.spot_post_order(
                 symbol=order.inst_id, 
                 side=order.side.upper(), 
@@ -949,7 +949,7 @@ class binanceGateway(baseGateway):
                 price=str(order.px) if order.px else "", 
                 newClientOrderId=order.cl_ord_id,
             )
-        elif order.inst_type.lower() == instTypeData.MARGINCROSS:
+        elif order.inst_type.lower() == instTypeEnum.MARGINCROSS:
             result = self.sync_spot.lever_post_order(
                 symbol=order.inst_id, 
                 side=order.side.upper(), 
@@ -976,9 +976,9 @@ class binanceGateway(baseGateway):
             clOrderId = cancel.cl_ord_id
             send_return.cl_ord_id = cancel.cl_ord_id
             
-        if cancel.inst_type.lower() == instTypeData.SPOT:
+        if cancel.inst_type.lower() == instTypeEnum.SPOT:
             result = self.sync_spot.spot_cancel_order(cancel.inst_id.upper(), orderId=orderId, origClientOrderId=clOrderId)
-        elif cancel.inst_type.lower() == instTypeData.MARGINCROSS:
+        elif cancel.inst_type.lower() == instTypeEnum.MARGINCROSS:
             result = self.sync_spot.lever_cancel_order(cancel.inst_id.upper(), orderId=orderId, origClientOrderId=clOrderId)
         
         if "code" in result:

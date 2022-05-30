@@ -34,9 +34,8 @@ from crypto_gateway_python.data_structure.base_data_struct import (
 
 from crypto_rest_python.huobi.sync_rest.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
 
-
-from crypto_rest_python.huobi.sync.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
-from crypto_rest_python.huobi.sync.consts import EXCHANGE_NAME, SPOT_WEBSOCKET_TRADE_HOST, SPOT_WEBSOCKET_DATA_HOST, SPOT_WEBSOCKET_MBP_DATA_HOST
+from crypto_rest_python.huobi.sync_rest.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
+from crypto_rest_python.huobi.sync_rest.consts import EXCHANGE_NAME, SPOT_WEBSOCKET_TRADE_HOST, SPOT_WEBSOCKET_DATA_HOST, SPOT_WEBSOCKET_MBP_DATA_HOST
 from crypto_gateway_python.utilities.utility_decimal import round_to
 from crypto_gateway_python.utilities.utility_time import dt_epoch_to_china_str
 
@@ -95,7 +94,7 @@ class huobiGateway:
     def exchange_info_transfer(self, data):
         info = instInfoData()
         info.exchange = self.exchange_name
-        info.inst_type = instTypeData.SPOT
+        info.inst_type = instTypeEnum.SPOT
         info.inst_id = data["sc"]
         info.inst_id_local = self.get_inst_id_local(info.inst_id, info.inst_type)
         info.price_tick = Decimal(str(10 ** (-data["tpp"])))
@@ -206,7 +205,7 @@ class huobiGateway:
     async def amend_batch_order(self, amend_list: List[amendOrderSendData]):
         pass
     
-    def send_order_rest(self, order: orderSendData) -> wsInfoData:
+    def send_order_rest(self, order: orderSendData) -> sendReturnData:
         """
         rest also async, 
         """
@@ -221,23 +220,23 @@ class huobiGateway:
         )
         
         status = result["status"]
-        ws_info = wsInfoData()
+        ws_info = sendReturnData()
         ws_info.gateway_name = self.gateway_name
         ws_info.account_name = self.account_name
-        ws_info.channel = orderChannelData.ORDER
+        ws_info.channel = orderChannelEnum.ORDER
 
         if status == "ok":
             ws_info.ord_id = str(result["data"])
             ws_info.cl_ord_id = order.cl_ord_id
             ws_info.msg = ""
-            ws_info.ord_state = orderStateData.SUBMITTED
+            ws_info.ord_state = orderStateEnum.SUBMITTED
         else:
             ws_info.code = str(result["err-code"])
             ws_info.msg = str(result["err-msg"])
                 
         return ws_info
 
-    def send_batch_order_rest(self, order_list: List[orderSendData]) -> List[wsInfoData]:
+    def send_batch_order_rest(self, order_list: List[orderSendData]) -> List[sendReturnData]:
         post_list = []
         for order in order_list:
             d = {}
@@ -254,15 +253,15 @@ class huobiGateway:
         li = []
         
         for order in result["data"]:
-            ws_info = wsInfoData()
+            ws_info = sendReturnData()
             ws_info.gateway_name = self.gateway_name
             ws_info.account_name = self.account_name
-            ws_info.channel = orderChannelData.BATCHORDERS
+            ws_info.channel = orderChannelEnum.BATCHORDERS
 
             if "order-id" in order:
                 ws_info.ord_id = str(order["order-id"])
                 ws_info.msg = ""
-                ws_info.ord_state = orderStateData.SUBMITTED
+                ws_info.ord_state = orderStateEnum.SUBMITTED
 
             if "client-order-id" in order:
                 ws_info.cl_ord_id = str(order["client-order-id"])
@@ -275,16 +274,16 @@ class huobiGateway:
 
         return li
 
-    def cancel_order_rest(self, cancel: cancelOrderSendData) -> wsInfoData:
+    def cancel_order_rest(self, cancel: cancelOrderSendData) -> sendReturnData:
         if cancel.ord_id:
             result = self.rest.trade_post_cancel_order(cancel.ord_id)
         else:
             result = self.rest.trade_post_cancel_order_cliordId(cancel.cl_ord_id)
         
-        ws_info = wsInfoData()
+        ws_info = sendReturnData()
         ws_info.gateway_name = self.gateway_name
         ws_info.account_name = self.account_name
-        ws_info.channel = orderChannelData.CANCELORDER
+        ws_info.channel = orderChannelEnum.CANCELORDER
 
         status = result["status"]
         if status == "ok":
@@ -298,7 +297,7 @@ class huobiGateway:
         
         return ws_info
 
-    def cancel_batch_orders_rest(self, cancel_list: List[cancelOrderSendData]) -> List[wsInfoData]:
+    def cancel_batch_orders_rest(self, cancel_list: List[cancelOrderSendData]) -> List[sendReturnData]:
         cancel_ord_list = []
         if cancel_list[0].ord_id != "":
             for cancel_order in cancel_list:
@@ -318,10 +317,10 @@ class huobiGateway:
 
         for data in result:
             
-            ws_info = wsInfoData()
+            ws_info = sendReturnData()
             ws_info.gateway_name = self.gateway_name
             ws_info.account_name = self.account_name
-            ws_info.channel = orderChannelData.CANCELORDER
+            ws_info.channel = orderChannelEnum.CANCELORDER
             if "err-code" in data:
                 ws_info.code = str(data["err-code"])
                 ws_info.msg = str(data["err-msg"])
@@ -448,11 +447,11 @@ class huobiGateway:
         account.ccy = data["currency"]
         inst_type = self.rest.get_account_type_from_account_id(data["accountId"])
         if inst_type == "spot":
-            account.ccy_local = self.get_inst_ccy_local("", instTypeData.SPOT, account.ccy)
+            account.ccy_local = self.get_inst_ccy_local("", instTypeEnum.SPOT, account.ccy)
         elif inst_type == "margin":
-            account.ccy_local = self.get_inst_ccy_local("", instTypeData.MARGINISOLATED, account.ccy)
+            account.ccy_local = self.get_inst_ccy_local("", instTypeEnum.MARGINISOLATED, account.ccy)
         elif inst_type == "super-margin":
-            account.ccy_local = self.get_inst_ccy_local("", instTypeData.MARGINCROSS, account.ccy)
+            account.ccy_local = self.get_inst_ccy_local("", instTypeEnum.MARGINCROSS, account.ccy)
         account.equity = Decimal(data["balance"])
         account.debt = Decimal("0")
         account.frozen = Decimal(data["balance"]) - Decimal(data["available"])
@@ -497,7 +496,7 @@ class huobiGateway:
             order.update_time_china = dt_epoch_to_china_str(order.update_time_epoch)
             order.create_time_epoch = Decimal(int(data["orderCreateTime"]))
             order.create_time_china = dt_epoch_to_china_str(order.update_time_epoch)
-            order.state = orderStateData.SUBMITTED
+            order.state = orderStateEnum.SUBMITTED
             # add order dict
             self.order_dict[order.ord_id] = order
             return order
@@ -509,9 +508,9 @@ class huobiGateway:
             order.acc_fill_sz = Decimal(data["execAmt"]) # acc fill sz
             # for remainAmt, un filled sz, calculate by orderSize - acc_fill_sz
             if order.acc_fill_sz == 0:
-                order.state = orderStateData.CANCELED
+                order.state = orderStateEnum.CANCELED
             else: 
-                order.state = orderStateData.PARTIALCANCELED
+                order.state = orderStateEnum.PARTIALCANCELED
             return order
 
     def order_fill_trans(self, data):
@@ -546,9 +545,9 @@ class huobiGateway:
         order.create_time_epoch = Decimal(int(data["tradeTime"]))
         order.create_time_china = dt_epoch_to_china_str(order.update_time_epoch)
         if data["orderStatus"] == "partial-filled":
-            order.state = orderStateData.PARTIALFILLED
+            order.state = orderStateEnum.PARTIALFILLED
         elif data["orderStatus"] == "filled":
-            order.state = orderStateData.FILLED
+            order.state = orderStateEnum.FILLED
         
         return order
 
@@ -583,11 +582,11 @@ class huobiGateway:
         return fill
         
     def ws_info_trans(self, d: dict):
-        ws_info = wsInfoData()
+        ws_info = sendReturnData()
         ws_info.gateway_name = self.gateway_name
         ws_info.account_name = self.account_name
         ws_info.ws_id = ""
-        ws_info.channel = orderChannelData.ORDER
+        ws_info.channel = orderChannelEnum.ORDER
         ws_info.ord_id = ""
         ws_info.cl_ord_id = d["clientOrderId"]
         # trigger error
@@ -737,7 +736,7 @@ class huobiGateway:
                                 self.depth_seq_num[tick_symbol] = tick_new["seqNum"]
                                 #
                                 
-                                depth = self.depth_transfer(f"{tick_symbol}", instTypeData.SPOT)
+                                depth = self.depth_transfer(f"{tick_symbol}", instTypeEnum.SPOT)
                                 if not depth:
                                     continue
 
@@ -773,7 +772,7 @@ class huobiGateway:
 
                             # change and push
 
-                            depth = self.depth_transfer(f"{tick_symbol}", instTypeData.SPOT)
+                            depth = self.depth_transfer(f"{tick_symbol}", instTypeEnum.SPOT)
                             if not depth:
                                 continue
                             
@@ -857,7 +856,7 @@ class huobiGateway:
                                     self.depth_seq_num[tick_symbol] = seqNum
                                     
                                     # 
-                                    depth = self.depth_transfer(tick_symbol, instTypeData.SPOT)
+                                    depth = self.depth_transfer(tick_symbol, instTypeEnum.SPOT)
 
                                     if self.listener_depth:
                                         await self.listener_depth(depth)
@@ -976,7 +975,7 @@ class huobiGateway:
                                             # self.log_record(f"{order}")
                                             # self.log_record(f"{fill}")
                                             # delete if filled, incase memory get more and more
-                                            if order.state == orderStateData.FILLED:
+                                            if order.state == orderStateEnum.FILLED:
                                                 if order.ord_id in self.order_dict:
                                                     del self.order_dict[order.ord_id]
                                         else:
@@ -986,7 +985,7 @@ class huobiGateway:
                                             # self.log_record(f"{eventType}")
                                             # self.log_record(f"{order}")
                                             # delete if filled, incase memory get more and more
-                                            if order.state in [orderStateData.PARTIALCANCELED, orderStateData.CANCELED]:
+                                            if order.state in [orderStateEnum.PARTIALCANCELED, orderStateEnum.CANCELED]:
                                                 if order.ord_id in self.order_dict:
                                                     del self.order_dict[order.ord_id]
 
@@ -1079,11 +1078,11 @@ def create_signature_v2(
 
 def order_source_transfer(order_source):
     if order_source == "spot-api":
-        return instTypeData.SPOT
+        return instTypeEnum.SPOT
     elif order_source == "margin-api":
-        return instTypeData.MARGINISOLATED
+        return instTypeEnum.MARGINISOLATED
     elif order_source == "super-margin-api":
-        return instTypeData.MARGINCROSS
+        return instTypeEnum.MARGINCROSS
 
 def order_type_transfer(order_type):
     # buy-market, sell-market, 
@@ -1092,65 +1091,65 @@ def order_type_transfer(order_type):
     # buy-limit-fok, sell-limit-fok
 
     if order_type == "buy-market":
-        return orderTypeData.MARKET, orderSideData.BUY
+        return orderTypeEnum.MARKET, orderSideEnum.BUY
     elif order_type == "sell-market":
-        return orderTypeData.MARKET, orderSideData.SELL
+        return orderTypeEnum.MARKET, orderSideEnum.SELL
     elif order_type == "buy-limit":
-        return orderTypeData.LIMIT, orderSideData.BUY
+        return orderTypeEnum.LIMIT, orderSideEnum.BUY
     elif order_type == "sell-limit":
-        return orderTypeData.LIMIT, orderSideData.SELL
+        return orderTypeEnum.LIMIT, orderSideEnum.SELL
     elif order_type == "buy-limit-maker":
-        return orderTypeData.POSTONLY, orderSideData.BUY
+        return orderTypeEnum.POSTONLY, orderSideEnum.BUY
     elif order_type == "sell-limit-maker":
-        return orderTypeData.POSTONLY, orderSideData.SELL
+        return orderTypeEnum.POSTONLY, orderSideEnum.SELL
     elif order_type == "buy-ioc":
-        return orderTypeData.IOC, orderSideData.BUY
+        return orderTypeEnum.IOC, orderSideEnum.BUY
     elif order_type == "sell-ioc":
-        return orderTypeData.IOC, orderSideData.SELL
+        return orderTypeEnum.IOC, orderSideEnum.SELL
     elif order_type == "buy-limit-fok":
-        return orderTypeData.FOK, orderSideData.BUY
+        return orderTypeEnum.FOK, orderSideEnum.BUY
     elif order_type == "sell-limit-fok":
-        return orderTypeData.FOK, orderSideData.SELL
+        return orderTypeEnum.FOK, orderSideEnum.SELL
 
-def order_type_transfer_reverse(ord_type: orderTypeData, ord_side: orderSideData):
-    if ord_type == orderTypeData.MARKET and ord_side == orderSideData.BUY:
+def order_type_transfer_reverse(ord_type: orderTypeEnum, ord_side: orderSideEnum):
+    if ord_type == orderTypeEnum.MARKET and ord_side == orderSideEnum.BUY:
         return "buy-market"
-    elif ord_type == orderTypeData.MARKET and ord_side == orderSideData.SELL:
+    elif ord_type == orderTypeEnum.MARKET and ord_side == orderSideEnum.SELL:
         return "sell-market"
-    elif ord_type == orderTypeData.LIMIT and ord_side == orderSideData.BUY:
+    elif ord_type == orderTypeEnum.LIMIT and ord_side == orderSideEnum.BUY:
         return "buy-limit"
-    elif ord_type == orderTypeData.LIMIT and ord_side == orderSideData.SELL:
+    elif ord_type == orderTypeEnum.LIMIT and ord_side == orderSideEnum.SELL:
         return "sell-limit"
-    elif ord_type == orderTypeData.POSTONLY and ord_side == orderSideData.BUY:
+    elif ord_type == orderTypeEnum.POSTONLY and ord_side == orderSideEnum.BUY:
         return "buy-limit-maker"
-    elif ord_type == orderTypeData.POSTONLY and ord_side == orderSideData.SELL:
+    elif ord_type == orderTypeEnum.POSTONLY and ord_side == orderSideEnum.SELL:
         return "sell-limit-maker"
-    elif ord_type == orderTypeData.IOC and ord_side == orderSideData.BUY:
+    elif ord_type == orderTypeEnum.IOC and ord_side == orderSideEnum.BUY:
         return "buy-ioc"
-    elif ord_type == orderTypeData.IOC and ord_side == orderSideData.SELL:
+    elif ord_type == orderTypeEnum.IOC and ord_side == orderSideEnum.SELL:
         return "sell-ioc"
-    elif ord_type == orderTypeData.FOK and ord_side == orderSideData.BUY:
+    elif ord_type == orderTypeEnum.FOK and ord_side == orderSideEnum.BUY:
         return "buy-limit-fok"
-    elif ord_type == orderTypeData.FOK and ord_side == orderSideData.SELL:
+    elif ord_type == orderTypeEnum.FOK and ord_side == orderSideEnum.SELL:
         return "sell-limit-fok"
 
 def order_state_transfer(order_state):
     if str(order_state) == "-1":
-        return orderStateData.CANCELED
+        return orderStateEnum.CANCELED
     elif str(order_state) == "1":
-        return orderStateData.CREATED
+        return orderStateEnum.CREATED
     elif str(order_state) == "3":
-        return orderStateData.SUBMITTED
+        return orderStateEnum.SUBMITTED
     elif str(order_state) == "4":
-        return orderStateData.PARTIALFILLED
+        return orderStateEnum.PARTIALFILLED
     elif str(order_state) == "5":
-        return orderStateData.PARTIALCANCELED
+        return orderStateEnum.PARTIALCANCELED
     elif str(order_state) == "6":
-        return orderStateData.FILLED
+        return orderStateEnum.FILLED
     elif str(order_state) == "7":
-        return orderStateData.CANCELED
+        return orderStateEnum.CANCELED
     elif str(order_state) == "10":
-        return orderStateData.CANCELLING
+        return orderStateEnum.CANCELLING
     else:
         return order_state
     

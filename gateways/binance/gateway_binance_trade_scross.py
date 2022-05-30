@@ -44,7 +44,8 @@ from crypto_gateway_python.data_structure.base_data_struct import (
     cancelOrderSendData,
     amendOrderSendData,
     )
-from crypto_rest_python.binance.async_rest.client import Request
+from crypto_rest_python.async_rest_client import Request
+
 from crypto_rest_python.binance.sync_rest.spot_api import SpotAPI
 from crypto_rest_python.binance.async_rest.async_spot import asyncBinanceSpot
 from crypto_rest_python.binance.sync_rest.consts import EXCHANGE_NAME, WS_SPOT_URL
