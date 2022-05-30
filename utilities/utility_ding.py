@@ -9,6 +9,9 @@ import os
 from datetime import datetime
 from dingtalkchatbot import chatbot
 from .utility_yaml import load_yaml_file
+from .utility_common_path import COMMON_PATH
+
+ding_path = os.path.join(COMMON_PATH, "utility_config")
 
 class helper_dingding:
 
@@ -19,9 +22,9 @@ class helper_dingding:
     
     def load_ding(self):
         if self.ding_yaml_file[-4:] != 'yaml':
-            filepath =  os.path.join("/app/utility_config", self.ding_yaml_file + ".yml")
+            filepath =  os.path.join(ding_path, self.ding_yaml_file + ".yaml")
         else:
-            filepath =  os.path.join("/app/utility_config", self.ding_yaml_file + ".yml")
+            filepath =  os.path.join(ding_path, self.ding_yaml_file + ".yaml")
             
         config_file = load_yaml_file(filepath)
         ding = chatbot.DingtalkChatbot(webhook=config_file['webhook'])

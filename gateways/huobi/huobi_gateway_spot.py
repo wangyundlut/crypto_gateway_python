@@ -19,18 +19,21 @@ from crypto_gateway_python.data_structure.base_data_struct import (
     accountData,
     depthData,
     instInfoData,
-    instTypeData,
-    orderChannelData,
+    instTypeEnum,
+    orderChannelEnum,
     orderData,
     orderSendData, 
     cancelOrderSendData,
     amendOrderSendData,
-    orderSideData,
-    orderStateData,
-    orderTypeData,
+    orderSideEnum,
+    orderStateEnum,
+    orderTypeEnum,
     positionData,
     fillData,
-    wsInfoData)
+    sendReturnData)
+
+from crypto_rest_python.huobi.sync_rest.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
+
 
 from crypto_rest_python.huobi.sync.rest_api_spot import huobiRestSpot, SPOT_REST_HOST
 from crypto_rest_python.huobi.sync.consts import EXCHANGE_NAME, SPOT_WEBSOCKET_TRADE_HOST, SPOT_WEBSOCKET_DATA_HOST, SPOT_WEBSOCKET_MBP_DATA_HOST

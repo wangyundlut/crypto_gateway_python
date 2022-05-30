@@ -1,5 +1,7 @@
 import yaml
 import os
+from .utility_common_path import COMMON_PATH
+account_path = os.path.join(COMMON_PATH, "account_config")
 
 
 def load_yaml_file(file_path):
@@ -10,6 +12,6 @@ def load_yaml_file(file_path):
 
 
 def load_account_file(account_config):
-    with open (os.path.join("/app/account_config", account_config + ".yml")) as f:
+    with open (os.path.join(account_path, account_config + ".yaml")) as f:
         config_file = yaml.load(f, Loader=yaml.FullLoader)
     return config_file

@@ -12,9 +12,9 @@ from datetime import datetime, timedelta
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from logging.handlers import RotatingFileHandler
+from .utility_common_path import COMMON_PATH
 
-
-LOGROOTPATH = '/app/log/'
+LOGROOTPATH = os.path.join(COMMON_PATH, "log")
 DEFAULTLOGFILEPATH = 'tempt'
 
 def load_file_log(name=None):

@@ -248,7 +248,7 @@ class binanceGatewayTrade(baseGatewayTrade):
             try:
                 listenKey = getListenKey()
                 self.listenKey = listenKey
-
+                self.helper_log_record(f"scross listenKey: {listenKey}")
                 async with websockets.connect(WS_SPOT_URL + "/stream?streams=" + listenKey) as ws:
                     self.ws = ws
                     self.helper_log_record(f"cross_websocket_with_login connect.. ")
@@ -258,7 +258,8 @@ class binanceGatewayTrade(baseGatewayTrade):
 
                     while True:
                         try:
-                            res = await asyncio.wait_for(ws.recv(), timeout=600)
+                            # res = await asyncio.wait_for(ws.recv(), timeout=600)
+                            res = await asyncio.wait_for(ws.recv(), timeout=30)
                         except asyncio.TimeoutError as e:
                             if listenKey != getListenKey():
                                 raise Exception('listenKeyExpired')
@@ -288,11 +289,11 @@ class binanceGatewayTrade(baseGatewayTrade):
                                 acc.exchange = self.exchange_name
                                 acc.ccy = balance["a"]
                                 acc.ccy_local = self.helper_get_account_ccy(balance["a"], instTypeEnum.MARGINCROSS)
-                                
+
                                 acc.asset = Decimal(balance["f"]) + Decimal(balance["l"])
                                 acc.debt = Decimal(0)
                                 acc.equity = Decimal(balance["f"]) + Decimal(balance["l"])
-                                
+
                                 acc.frozen = Decimal(balance["l"])
                                 acc.interest = Decimal(0)
                                 acc.account_risk = Decimal(0)
@@ -410,7 +411,7 @@ class binanceGatewayTrade(baseGatewayTrade):
 
                             if self.listener_order:
                                 self.listener_order(order_data)
-                                
+
                         else:
                             print(res["e"])
                             print(res)
@@ -422,17 +423,18 @@ class binanceGatewayTrade(baseGatewayTrade):
                     pass
                 else:
                     self.helper_log_record(f"ws scross error: {e}")
-                    
                     ws_break = wsBreakData()
                     ws_break.gateway_name = self.gateway_name
                     ws_break.exchange_name = self.exchange_name
                     ws_break.break_reason = f"scross channel break: {e}"
                     ws_break.break_time_epoch = int(time.time() * 1000)
                     ws_break.break_time_china = dt_epoch_to_china_str(ws_break.break_time_epoch)
+                    self.helper_log_record("send ws_break info to listener!")
                     if self.listener_ws_break:
                         self.listener_ws_break(ws_break)
-
+                self.helper_log_record(f"now we restart websocket!")
                 self.gateway_ready = False
+                self.ws = None
                 continue
 
     async def ws_receive(self, request: Request):

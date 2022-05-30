@@ -351,4 +351,4 @@ class baseGatewayTrade(baseGateway):
 
     ##################send order ##############################
 
-        
+
