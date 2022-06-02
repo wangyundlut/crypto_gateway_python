@@ -350,5 +350,6 @@ class baseGatewayTrade(baseGateway):
         pass
 
     ##################send order ##############################
-
+    def get_order_info(self, inst_id: str="", ord_id: str="", cl_ord_id: str="None") -> orderData:
+        pass
 

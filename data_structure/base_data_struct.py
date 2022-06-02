@@ -55,6 +55,10 @@ class instTypeEnum:
     SPOT = "spot"
     MARGINCROSS = "scross"
     MARGINISOLATED = "sisolated"
+    # usdt margin
+    USDTM = "usdtm"
+    # coin margin
+    COINM = "coinm"
     FUTURES = "futures"
     FUTURESISOLATED = "fisolated"
     SWAP = "swap"
@@ -276,6 +280,8 @@ class positionData:
     avg_px: Decimal = 0
     last_price: Decimal = 0
     pos: Decimal = 0
+    available: Decimal = 0
+    frozen: Decimal = 0
     update_time_epoch: int = int(time.time() * 1000)
     update_time_china: str = ""
 
