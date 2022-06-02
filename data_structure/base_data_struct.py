@@ -221,7 +221,8 @@ class accountData:
     gateway_name : str = ""
     account_name: str = ""
     exchange: str = ""
-    change_type: str = ""
+    inst_type: str = ""
+    inst_id: str = ""
     ccy: str = ""
     ccy_local: str = "" # exchange + ccy
     asset: Decimal = 0 # asset
