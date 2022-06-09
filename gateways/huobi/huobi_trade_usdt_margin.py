@@ -181,7 +181,6 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
         pos.inst_type = info.inst_type
         pos.inst_id = inst_id
         pos.inst_id_local = info.inst_id_local
-        pos.open_px = Decimal(res["cost_open"])
         pos.open_px = Decimal(str(res["cost_open"]))
         pos.hold_px = Decimal(str(res["cost_hold"]))
         pos.last_price = Decimal(str(res["last_price"]))

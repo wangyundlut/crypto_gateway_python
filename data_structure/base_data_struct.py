@@ -280,6 +280,9 @@ class positionData:
     inst_id_local: str = ""
     avg_px: Decimal = 0
     last_price: Decimal = 0
+    open_px: Decimal = 0
+    hold_px: Decimal = 0
+    direction: str = ""
     pos: Decimal = 0
     available: Decimal = 0
     frozen: Decimal = 0

@@ -12,6 +12,7 @@ class orderError:
     MULTIPLESIZE = "Order count should be the integer multiples of the lot size"
     DUPLICATECLIORDID = "Duplicated client order ID"
     POSTONLYPRICEERROR = "Order would immediately match and take."
+    INSETTLEMENT = "In settlement. Your order can’t be placed/withdrew currently."
 
     TIMEOUT = "Timestamp for this request is outside of the recvWindow."
 
