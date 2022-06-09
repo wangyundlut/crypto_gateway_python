@@ -443,8 +443,13 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                 send_return.msg = ""
                 # send_return.ord_state = orderStateEnum.SENDSUCCEED
             else:
+                if str(data["err_msg"]) == orderError.INSETTLEMENT:
+                    send_return.msg = orderError.INSETTLEMENT
+                elif str(data["err_msg"]) == orderError.SYSTEMEBUSY:
+                    send_return.msg = orderError.SYSTEMEBUSY
+                else:
+                    send_return.msg = str(data["err_msg"])
                 send_return.code = str(data["err_code"])
-                send_return.msg = str(data["err_msg"])
                 send_return.ord_state = orderStateEnum.SENDFAILED
         elif "/linear-swap-api/v1/swap_cross_cancel" in request.path:
             status = data["status"]
