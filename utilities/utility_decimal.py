@@ -14,8 +14,8 @@ def round_to(value: float or Decimal, target: float or Decimal) -> float or Deci
         value = Decimal(str(value))
         target = Decimal(str(target))
         rounded = Decimal(int(round(value / target)) * target)
-        if target > 0.5:
-            rounded = int(rounded)
+        # if target > 0.5:
+        #     rounded = int(rounded)
     except Exception as e:
         print(e)
     return rounded
@@ -27,8 +27,8 @@ def floor_to(value: float or Decimal, target: float or Decimal) -> float or Deci
     value = Decimal(str(value))
     target = Decimal(str(target))
     result = Decimal(int(floor(value / target)) * target)
-    if target > 0.5:
-        result = int(result)
+    # if target > 0.5:
+    #     result = int(result)
     return result
 
 def ceil_to(value: float or Decimal, target: float or Decimal) -> float or Decimal:
@@ -38,8 +38,8 @@ def ceil_to(value: float or Decimal, target: float or Decimal) -> float or Decim
     value = Decimal(str(value))
     target = Decimal(str(target))
     result = Decimal(int(ceil(value / target)) * target)
-    if target > 0.5:
-        result = int(result)
+    # if target > 0.5:
+    #     result = int(result)
     return result
 
 def get_digits(value: float) -> int:
