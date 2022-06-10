@@ -372,12 +372,12 @@ class huobiGatewayTradeSpot(baseGatewayTrade):
                             try:
                                 await ws.send('ping')
                                 res = await ws.recv()
-                                print(str(datetime.now()) + res)
+                                self.helper_log_record(str(datetime.now()) + res)
                                 continue
                             except Exception as e:
                                 
-                                print(str(datetime.now()) + "正在重连……")
-                                print(e)
+                                self.helper_log_record(str(datetime.now()) + "正在重连……")
+                                self.helper_log_record(e)
                                 break
 
                         res = json.loads(res)
@@ -463,9 +463,9 @@ class huobiGatewayTradeSpot(baseGatewayTrade):
 
             except Exception as e:
                 if 'cannot schedule new FUTURES after shutdown' in str(e):
-                    pass
+                    self.helper_log_record(f"ws spot error: {e}")
                 elif 'no running event loop' in str(e):
-                    pass
+                    self.helper_log_record(f"ws spot error: {e}")
                 else:
                     self.helper_log_record(f"ws spot error: {e}")
                     
@@ -725,7 +725,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     session = loop.run_until_complete(create_session(loop))
     start_event_loop(loop)
-    with open("/home/op/wangyun/account_config/huobi/test3.yaml", "r") as f:
+    with open("/home/op/wangyun/account_config/huobi/spread1.yaml", "r") as f:
         account = yaml.full_load(f)
     # account = load_account_file("huobi/test1")
     gateway = huobiGatewayTradeSpot('test')
@@ -747,7 +747,10 @@ if __name__ == "__main__":
 
     print(gateway.sync_spot.account_get_uid())
     print(gateway.sync_spot.trade_get_fee(['btcusdt']))
-    # print(gateway.sync_spot.account_post_transfer_usdt_margin("spot", "linear-swap", "usdt", 100, "usdt"))
+    print(gateway.sync_spot.account_get_asset_valuation("super-margin"))
+    print(gateway.sync_spot.account_get_valuation())
+    # print(gateway.sync_spot.account_post_transfer_usdt_margin("spot", "linear-swap", "usdt", 1, "usdt"))
+    # print(gateway.sync_spot.account_post_transfer_usdt_margin("linear-swap", "spot", "usdt", 5000, "usdt"))
     
     result = gateway.sync_spot.trade_get_open_order(symbol='btcusdt')
     for data in result['data']:
@@ -762,12 +765,12 @@ if __name__ == "__main__":
 
     order = orderSendData()
     order.inst_id='btcusdt'
-    order.ord_type=orderTypeEnum.LIMIT
+    order.ord_type=orderTypeEnum.POSTONLY
     order.cl_ord_id='btctest'
     order.side="buy"
-    order.px=Decimal("30400")
-    order.sz=Decimal("0.003")
-    # gateway.send_order(order)
+    order.px=Decimal("30040")
+    order.sz=Decimal("0.0001")
+    gateway.send_order(order)
 
     while True:
         time.sleep(100)

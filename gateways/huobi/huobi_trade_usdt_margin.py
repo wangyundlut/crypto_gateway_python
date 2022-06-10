@@ -326,8 +326,6 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                         await ws.send(json.dumps(topic))
                         self.helper_log_record(topic)     
 
-                    
-
                     while True:
                         try:
                             res = await asyncio.wait_for(ws.recv(), timeout=25)
@@ -335,12 +333,12 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                             try:
                                 await ws.send('ping')
                                 res = await ws.recv()
-                                print(str(datetime.now()) + res)
+                                self.helper_log_record(str(datetime.now()) + res)
                                 continue
                             except Exception as e:
                                 
-                                print(str(datetime.now()) + "正在重连……")
-                                print(e)
+                                self.helper_log_record(str(datetime.now()) + "正在重连……")
+                                self.helper_log_record(e)
                                 break
 
                         res = json.loads(gzip.decompress(res).decode("utf-8"))
@@ -352,7 +350,6 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                                 "op": "pong",
                                 "ts": res["ts"]
                             }
-                            
                             await ws.send(json.dumps(d))
                             continue
                         elif op == "error":
@@ -404,9 +401,9 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
             except Exception as e:
                 
                 if 'cannot schedule new futures after shutdown' in str(e).lower():
-                    pass
+                    self.helper_log_record(f"ws usdt margin error: {e}")
                 elif 'no running event loop' in str(e):
-                    pass
+                    self.helper_log_record(f"ws usdt margin error: {e}")
                 else:
                     self.helper_log_record(f"ws usdt margin error: {e}")
                     
@@ -696,7 +693,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     session = loop.run_until_complete(create_session(loop))
     start_event_loop(loop)
-    with open("/home/op/wangyun/account_config/huobi/test4.yaml", "r") as f:
+    with open("/home/op/wangyun/account_config/huobi/spread1.yaml", "r") as f:
         account = yaml.full_load(f)
     # account = load_account_file("huobi/test1")
     gateway = huobiGatewayTradeUsdtMargin('test')
@@ -736,13 +733,14 @@ if __name__ == "__main__":
     # print(gateway.get_order_info("BTC-USDT", ord_id="979684719081889794"))
 
     order = orderSendData()
-    order.inst_id='doge-usdt'
-    order.px='0.081'
-    order.sz=5
-    order.side="sell"
+    order.inst_id='btc-usdt'
+    order.px='27000'
+    order.sz=1
+    order.side="buy"
     order.ord_type=orderTypeEnum.POSTONLY
-    # gateway.send_order(order)
+    gateway.send_order(order)
     print(gateway.sync_usdt_margin.asset_balance_valuation())
+    
     while True:
         time.sleep(1)
     
