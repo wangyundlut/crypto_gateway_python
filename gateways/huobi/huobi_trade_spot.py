@@ -205,8 +205,9 @@ class huobiGatewayTradeSpot(baseGatewayTrade):
         order.inst_id_local = self.helper_get_inst_id_local(order.inst_id, order.inst_type)
         order.ord_id = str(data["orderId"])
         order.cl_ord_id = str(data["clientOrderId"])
-
-        order.px = Decimal(data["orderPrice"])
+        if "orderPrice" in data:
+            order.px = Decimal(data["orderPrice"])
+            
         order.sz = Decimal(data["orderSize"])
         order.ord_type, order.side = order_type_transfer(data["type"])
 
@@ -246,8 +247,8 @@ class huobiGatewayTradeSpot(baseGatewayTrade):
         order.inst_id_local = self.helper_get_inst_id_local(order.inst_id, order.inst_type)
         order.ord_id = str(data["orderId"])
         order.cl_ord_id = str(data["clientOrderId"])
-
-        order.px = Decimal(data["orderPrice"])
+        if "orderPrice" in data:
+            order.px = Decimal(data["orderPrice"])
         order.sz = Decimal(data["orderSize"])
         order.ord_type, order.side = order_type_transfer(data["type"])
 
@@ -549,11 +550,12 @@ class huobiGatewayTradeSpot(baseGatewayTrade):
         """
         rest also async, 
         """
+        type_ = order_type_transfer_reverse(order.ord_type, order.side)
         self.async_spot.trade_post_order(
             symbol=order.inst_id,
             type_=order_type_transfer_reverse(order.ord_type, order.side),
             amount=str(order.sz),
-            price=str(order.px),
+            price=None if "market" in type_ else str(order.px),
             client_order_id=order.cl_ord_id,
             account_type="spot",
             cb=self.send_return_receive
@@ -725,7 +727,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     session = loop.run_until_complete(create_session(loop))
     start_event_loop(loop)
-    with open("/home/op/wangyun/account_config/huobi/spread1.yaml", "r") as f:
+    with open("/home/op/wangyun/account_config/huobi/test1.yaml", "r") as f:
         account = yaml.full_load(f)
     # account = load_account_file("huobi/test1")
     gateway = huobiGatewayTradeSpot('test')
@@ -733,7 +735,7 @@ if __name__ == "__main__":
     gateway.add_config_account(account)
     gateway.helper_load_exchange_info()
     sub = subData()
-    sub.inst_id = 'btcusdt'
+    sub.inst_id = 'ethusdt'
     gateway.add_strategy_sub(sub)
 
     gateway.add_listener_account(account_listener)
@@ -746,13 +748,15 @@ if __name__ == "__main__":
     time.sleep(1)
 
     print(gateway.sync_spot.account_get_uid())
-    print(gateway.sync_spot.trade_get_fee(['btcusdt']))
-    print(gateway.sync_spot.account_get_asset_valuation("super-margin"))
+    print(gateway.sync_spot.trade_get_fee(['ethusdt']))
+    print(gateway.sync_spot.account_get_asset_valuation("spot"))
     print(gateway.sync_spot.account_get_valuation())
-    # print(gateway.sync_spot.account_post_transfer_usdt_margin("spot", "linear-swap", "usdt", 1, "usdt"))
-    # print(gateway.sync_spot.account_post_transfer_usdt_margin("linear-swap", "spot", "usdt", 5000, "usdt"))
+    gateway.helper_get_account('usdt', 'ethusdt', 'spot')
+    gateway.sync_spot.account_get_balance("spot")
+    # print(gateway.sync_spot.account_post_transfer_usdt_margin("spot", "linear-swap", "usdt", 229, "usdt"))
+    # print(gateway.sync_spot.account_post_transfer_usdt_margin("linear-swap", "spot", "usdt", 500, "usdt"))
     
-    result = gateway.sync_spot.trade_get_open_order(symbol='btcusdt')
+    result = gateway.sync_spot.trade_get_open_order(symbol='ethusdt')
     for data in result['data']:
         print(data)
         print(f"\n")
@@ -761,17 +765,17 @@ if __name__ == "__main__":
     # print(gateway.sync_spot.trade_get_fee(['btcusdt']))
     # cancel = cancelOrderSendData()
     # cancel.cl_ord_id = "btctest"
-    
+
 
     order = orderSendData()
-    order.inst_id='btcusdt'
+    order.inst_id='ethusdt'
     order.ord_type=orderTypeEnum.POSTONLY
-    order.cl_ord_id='btctest'
-    order.side="buy"
-    order.px=Decimal("30040")
-    order.sz=Decimal("0.0001")
+    order.cl_ord_id='ethtest'
+    order.side="sell"
+    order.px=Decimal("1123")
+    order.sz=Decimal("0.01")
     gateway.send_order(order)
-
+    print(f"send order {order}")
     while True:
         time.sleep(100)
 

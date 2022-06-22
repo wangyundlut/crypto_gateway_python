@@ -83,8 +83,8 @@ def huobi_load_usdt_margin_info():
         info.price_tick = Decimal(str(data["price_tick"]))
         info.min_order_sz = Decimal(str("1"))
 
-        # info.base_ccy = data["bc"]
-        # info.quote_ccy = data["qc"]
+        # info.base_ccy = data["bc"].lower()
+        # info.quote_ccy = data["qc"].lower()
 
         info.con_val = Decimal(str(data["contract_size"]))
         symbols_info[info.inst_id_local] = info

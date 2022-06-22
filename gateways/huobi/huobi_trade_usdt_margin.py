@@ -276,7 +276,7 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
         account.gateway_name = self.gateway_name
         account.account_name = self.account_name
         account.exchange = self.exchange_name
-        account.ccy = data["margin_asset"]
+        account.ccy = data["margin_asset"].lower()
         account.equity = Decimal(str(data["margin_balance"]))
         account.frozen = Decimal(str(data["margin_frozen"]))
         if not data["risk_rate"]:
@@ -339,7 +339,8 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                                 
                                 self.helper_log_record(str(datetime.now()) + "正在重连……")
                                 self.helper_log_record(e)
-                                break
+                                
+                                raise Exception("websockets.exceptions.ConnectionClosed")
 
                         res = json.loads(gzip.decompress(res).decode("utf-8"))
                         
@@ -399,23 +400,27 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                                 self.listener_account(account)
                             
             except Exception as e:
-                
+                ws_break = wsBreakData()
+                ws_break.gateway_name = self.gateway_name
+                ws_break.exchange_name = self.exchange_name
+                ws_break.break_reason = f"margin channel break: {e}"
+                ws_break.break_time_epoch = int(time.time() * 1000)
+                ws_break.break_time_china = dt_epoch_to_china_str(ws_break.break_time_epoch)
+
                 if 'cannot schedule new futures after shutdown' in str(e).lower():
                     self.helper_log_record(f"ws usdt margin error: {e}")
                 elif 'no running event loop' in str(e):
                     self.helper_log_record(f"ws usdt margin error: {e}")
                 else:
                     self.helper_log_record(f"ws usdt margin error: {e}")
-                    
-                    ws_break = wsBreakData()
-                    ws_break.gateway_name = self.gateway_name
-                    ws_break.exchange_name = self.exchange_name
-                    ws_break.break_reason = f"margin channel break: {e}"
-                    ws_break.break_time_epoch = int(time.time() * 1000)
-                    ws_break.break_time_china = dt_epoch_to_china_str(ws_break.break_time_epoch)
+
+                if self.gateway_ready:
                     if self.listener_ws_break:
                         self.listener_ws_break(ws_break)
-
+                    else:
+                        self.helper_log_record(f"ws usdt margin, no! ws! break! listener!")
+                else:
+                    self.helper_log_record(f"usdt margin not ready!!! please check!")
                 self.gateway_ready = False
                 continue
 
@@ -440,7 +445,11 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                 send_return.msg = ""
                 # send_return.ord_state = orderStateEnum.SENDSUCCEED
             else:
-                if str(data["err_msg"]) == orderError.INSETTLEMENT:
+                if str(data["err_msg"]) == 'In settlement. Your order can’t be placed/withdrew currently.':
+                    send_return.msg = orderError.INSETTLEMENT
+                elif str(data["err_msg"]) == "In settlement or delivery. Unable to get positions of current contract.":
+                    send_return.msg = orderError.INSETTLEMENT
+                elif str(data["err_msg"]) == orderError.INSETTLEMENT:
                     send_return.msg = orderError.INSETTLEMENT
                 elif str(data["err_msg"]) == orderError.SYSTEMEBUSY:
                     send_return.msg = orderError.SYSTEMEBUSY
@@ -693,7 +702,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     session = loop.run_until_complete(create_session(loop))
     start_event_loop(loop)
-    with open("/home/op/wangyun/account_config/huobi/spread1.yaml", "r") as f:
+    with open("/home/op/wangyun/account_config/huobi/test1.yaml", "r") as f:
         account = yaml.full_load(f)
     # account = load_account_file("huobi/test1")
     gateway = huobiGatewayTradeUsdtMargin('test')
@@ -729,17 +738,17 @@ if __name__ == "__main__":
     # order.ord_type=orderTypeEnum.POSTONLY
     # gateway.send_order(order)
     # gateway.get_order_info(contract_code="BTC-USDT", ord_id="979028418916450304")
-    # print(gateway.sync_usdt_margin.trade_cancel_all(contract_code="DOGE-USDT"))
+    print(gateway.sync_usdt_margin.trade_cancel_all(contract_code="BTC-USDT"))
     # print(gateway.get_order_info("BTC-USDT", ord_id="979684719081889794"))
 
     order = orderSendData()
-    order.inst_id='btc-usdt'
-    order.px='27000'
+    order.inst_id='eth-usdt'
+    order.px='1115'
     order.sz=1
     order.side="buy"
     order.ord_type=orderTypeEnum.POSTONLY
-    gateway.send_order(order)
-    print(gateway.sync_usdt_margin.asset_balance_valuation())
+    # gateway.send_order(order)
+    # print(gateway.sync_usdt_margin.asset_balance_valuation())
     
     while True:
         time.sleep(1)
