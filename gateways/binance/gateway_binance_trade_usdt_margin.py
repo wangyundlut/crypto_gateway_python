@@ -174,7 +174,7 @@ class binanceGatewayTradeUsdtMargin(baseGatewayTrade):
         order.update_time_china = dt_epoch_to_china_str(order.update_time_epoch)
         return order
         
-    def helper_get_account(self, ccy: str) -> accountData:
+    def helper_get_account(self, ccy: str, inst_id: str="") -> accountData:
         result = self.sync_rest.trade_get_account()
         acc = accountData()
         acc.gateway_name = self.gateway_name
@@ -251,8 +251,8 @@ class binanceGatewayTradeUsdtMargin(baseGatewayTrade):
                             raise Exception('ConnectionClosed')
                         
                         res = json.loads(res)
-                        print(f"=====res=====")
-                        print(res)
+                        # print(f"=====res=====")
+                        # print(res)
 
                         if res['e'] == 'ACCOUNT_UPDATE':
                             trigger_time = res['T']
@@ -411,6 +411,11 @@ class binanceGatewayTradeUsdtMargin(baseGatewayTrade):
         send_return.account_name = self.account_name
         response = request.response
         data = response.json()
+        request_data = request.data
+        for key in request_data:
+            if "symbol" == key[0]:
+                send_return.inst_id = key[1]
+                send_return.inst_id_local = self.helper_get_inst_id_local(key[1], instTypeEnum.USDTM)
 
         # post order
         if request.method == "post":
@@ -459,18 +464,20 @@ class binanceGatewayTradeUsdtMargin(baseGatewayTrade):
         timeInForce = "GTC"
         type_ = order.ord_type.upper()
 
-        if order.ord_type == "ioc":
+        if order.ord_type == orderTypeEnum.IOC:
             type_ = "LIMIT"
             timeInForce = "IOC"
-        elif order.ord_type == "fok":
+        elif order.ord_type == orderTypeEnum.FOK:
             type_ = "LIMIT"
             timeInForce = "FOK"
-        elif order.ord_type == "limit":
+        elif order.ord_type == orderTypeEnum.LIMIT:
             type_ = "LIMIT"
             timeInForce = "GTC"
-        elif order.ord_type == "market":
+        elif order.ord_type == orderTypeEnum.MARKET:
             type_ = "MARKET"
-            
+        elif order.ord_type == orderTypeEnum.POSTONLY:
+            # for bn usdt margin, no post only order
+            type_ = "LIMIT"
         self.async_rest.usdt_margin_post_order(
             symbol=order.inst_id, 
             side=order.side.upper(), 
@@ -501,6 +508,10 @@ class binanceGatewayTradeUsdtMargin(baseGatewayTrade):
     def cancel_batch_order(self, cancel_list: List[cancelOrderSendData]):
         pass
         return 
+
+    def cancel_all(self, symbol=None):
+        result = self.sync_rest.trade_cancel_order_all(symbol=symbol.upper())
+        return result
 
 def exch_to_local(time_exchange):
     # 交易所的时间 -> 本地的时间 str -> datetime
@@ -597,27 +608,28 @@ if __name__ == '__main__':
     gateway.gateway_start()
     time.sleep(2)
 
-    print(gateway.helper_get_price('BTCUSDT'))
+    symbol = "WOOUSDT"
+    print(gateway.helper_get_price(symbol))
     print(gateway.helper_get_account('USDT'))
-    print(gateway.helper_get_position('BTCUSDT'))
+    print(gateway.helper_get_position(symbol))
     print(gateway.sync_rest.trade_get_balance())
     sub = subData()
-    sub.inst_id = "BTCUSDT"
+    sub.inst_id = symbol
     gateway.add_strategy_sub(sub)
     print(f"=====cancel all =====")
-    print(gateway.sync_rest.trade_cancel_order_all('BTCUSDT'))
+    print(gateway.sync_rest.trade_cancel_order_all(symbol))
     # cancel = cancelOrderSendData()
     # cancel.inst_id = "BTCUSDT"
     # cancel.ord_id = "59048207315"
     # gateway.cancel_order(cancel)
 
     order = orderSendData()
-    order.inst_id='BTCUSDT'
-    order.px='20830'
-    order.sz=0.001
-    order.side="sell"
+    order.inst_id=symbol
+    order.px=0.1589
+    order.sz=260
+    order.side="buy"
     order.ord_type=orderTypeEnum.LIMIT
-    # gateway.send_order(order)
+    gateway.send_order(order)
     
     while True:
         time.sleep(10)

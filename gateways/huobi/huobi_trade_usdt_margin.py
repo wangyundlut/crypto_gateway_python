@@ -1,6 +1,7 @@
 
 
 import asyncio
+from dataclasses import dataclass
 import time
 import websockets
 import json
@@ -147,9 +148,25 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
         order.create_time_china = dt_epoch_to_china_str(order.create_time_epoch)
         return order
         
-    def helper_get_account(self, ccy, inst_id: str, inst_type: str="") -> accountData:
-        
-        return 
+    def helper_get_account(self, ccy: str, inst_id: str, inst_type: str="") -> accountData:
+        result = self.sync_usdt_margin.asset_account()
+        data = result['data'][0]
+        acc = accountData()
+        acc.gateway_name = self.gateway_name
+        acc.account_name = self.account_name
+        acc.exchange = EXCHANGE_NAME
+        acc.inst_type = instTypeEnum.USDTM
+        acc.inst_id = inst_id
+        acc.ccy = ccy.upper()
+        acc.ccy_local = self.helper_get_account_ccy(ccy, inst_id, instTypeEnum.USDTM)
+        acc.asset = Decimal(str(data['margin_balance']))
+        acc.debt = Decimal("0")
+        acc.equity = Decimal(str(data['margin_balance']))
+        acc.frozen = Decimal(str(data['margin_frozen']))
+        acc.account_risk = 1 / Decimal(str(data['risk_rate']))
+        acc.update_time_china = int(time.time() * 1000)
+        acc.update_time_china = dt_epoch_to_china_str(acc.update_time_epoch)
+        return acc
     
     def helper_get_position(self, inst_id: str, inst_type: str="") -> positionData:
         inst_id_local = self.helper_get_inst_id_local(inst_id, inst_type)
@@ -427,14 +444,20 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
     def send_return_receive(self, request: Request):
         # order return
         data = request.response.json()
+        request_data = json.loads(request.data)
         # print(f"request path: {request.path}")
         # print(f"request result: {request.response.json()}")
         # print(f"request data: {request.data}")
+        send_return = sendReturnData()
+        send_return.gateway_name = self.gateway_name
+        send_return.account_name = self.account_name
+        if "contract_code" in request_data:
+            contract_code = request_data["contract_code"]
+            send_return.inst_id = contract_code
+            send_return.inst_id_local = self.helper_get_inst_id_local(contract_code, instTypeEnum.USDTM)
+        
         if "/linear-swap-api/v1/swap_cross_order" in request.path:
             status = data["status"]
-            send_return = sendReturnData()
-            send_return.gateway_name = self.gateway_name
-            send_return.account_name = self.account_name
             send_return.channel = orderChannelEnum.ORDER
 
             if "client_order_id" in request.data:
@@ -453,22 +476,21 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                     send_return.msg = orderError.INSETTLEMENT
                 elif str(data["err_msg"]) == orderError.SYSTEMEBUSY:
                     send_return.msg = orderError.SYSTEMEBUSY
+                elif str(data["err_msg"]) == "Internal error; unable to process your request. Please try again.":
+                    send_return.msg = orderError.SYSTEMERROR
                 else:
                     send_return.msg = str(data["err_msg"])
                 send_return.code = str(data["err_code"])
                 send_return.ord_state = orderStateEnum.SENDFAILED
         elif "/linear-swap-api/v1/swap_cross_cancel" in request.path:
             status = data["status"]
-            send_return = sendReturnData()
-            send_return.gateway_name = self.gateway_name
-            send_return.account_name = self.account_name
             send_return.channel = orderChannelEnum.CANCELORDER
 
             if "order_id" in request.data:
-                send_return.ord_id = json.loads(request.data)["order_id"]
+                send_return.ord_id = request_data["order_id"]
             
             if "client-order-id" in request.data:
-                send_return.cl_ord_id = json.loads(request.data)["client-order-id"]
+                send_return.cl_ord_id = request_data["client-order-id"]
             else:
                 if status == "ok":
                     if len(data["data"]) > 5:
@@ -489,6 +511,8 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
                     send_return.msg = cancelOrderError.NOTEXIST
                 elif str(data["err_code"]) == str(1061) and str(data["err_msg"]) == "This order doesnt exist.":
                     send_return.msg = cancelOrderError.NOTEXIST
+                elif str(data["err_msg"]) == "Internal error; unable to process your request. Please try again.":
+                    send_return.msg = orderError.SYSTEMERROR
                     
         if self.listener_send_return:
             self.listener_send_return(send_return)
@@ -581,7 +605,10 @@ class huobiGatewayTradeUsdtMargin(baseGatewayTrade):
         
     def get_pending_orders(self, contract_code: str, ):
         pass
-
+    
+    def cancel_all(self, symbol=None):
+        result = self.sync_usdt_margin.trade_cancel_all(contract_code=symbol.upper())
+        return result
     ##################send order ##############################
 
 def create_signature_v2(
@@ -702,15 +729,16 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     session = loop.run_until_complete(create_session(loop))
     start_event_loop(loop)
-    with open("/home/op/wangyun/account_config/huobi/test1.yaml", "r") as f:
+    with open("/home/op/wangyun/account_config/huobi/spread1.yaml", "r") as f:
         account = yaml.full_load(f)
     # account = load_account_file("huobi/test1")
     gateway = huobiGatewayTradeUsdtMargin('test')
     gateway.add_loop_session(loop, session)
     gateway.add_config_account(account)
     gateway.helper_load_exchange_info()
+    symbol = "ONE-USDT"
     sub = subData()
-    sub.inst_id = 'BTC-USDT'
+    sub.inst_id = symbol
     gateway.add_strategy_sub(sub)
 
     gateway.add_listener_account(account_listener)
@@ -738,24 +766,24 @@ if __name__ == "__main__":
     # order.ord_type=orderTypeEnum.POSTONLY
     # gateway.send_order(order)
     # gateway.get_order_info(contract_code="BTC-USDT", ord_id="979028418916450304")
-    print(gateway.sync_usdt_margin.trade_cancel_all(contract_code="BTC-USDT"))
+    print(gateway.sync_usdt_margin.trade_cancel_all(contract_code=symbol))
     # print(gateway.get_order_info("BTC-USDT", ord_id="979684719081889794"))
 
     order = orderSendData()
-    order.inst_id='eth-usdt'
-    order.px='1115'
-    order.sz=1
-    order.side="buy"
+    order.inst_id=symbol
+    order.px=0.01705
+    order.sz=196
+    order.side="sell"
     order.ord_type=orderTypeEnum.POSTONLY
-    # gateway.send_order(order)
-    # print(gateway.sync_usdt_margin.asset_balance_valuation())
+    gateway.send_order(order)
+    print(gateway.sync_usdt_margin.asset_balance_valuation())
     
     while True:
         time.sleep(1)
     
     print(gateway.sync_usdt_margin.asset_position())
+    print(gateway.sync_usdt_margin.trade_get_openorders(symbol))
     print(gateway.sync_usdt_margin.trade_get_openorders())
-    print(gateway.sync_usdt_margin.trade_get_openorders("BTC-USDT"))
 
     # result = gateway.sync_usdt_margin.trade_post_order(
     #     contract_code="BTC-USDT",

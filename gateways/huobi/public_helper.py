@@ -37,6 +37,7 @@ def huobi_load_exchange_info():
         info.base_ccy = data["bc"]
         info.quote_ccy = data["qc"]
         sz_precision = Decimal(str(10 ** (-data["tap"])))
+        info.step_order_sz = sz_precision
 
         if str(info.base_ccy + "usdt") in price_dict:
             ccy_usdt = str(info.base_ccy + "usdt")
@@ -78,11 +79,12 @@ def huobi_load_usdt_margin_info():
         info.exchange = EXCHANGE_NAME
         info.inst_type = instTypeEnum.USDTM
         # lower character
-        info.inst_id = data["contract_code"].lower()
+        info.inst_id = data["contract_code"]
         info.inst_id_local = huobi_get_inst_id_local(info.inst_id, info.inst_type)
         info.price_tick = Decimal(str(data["price_tick"]))
         info.min_order_sz = Decimal(str("1"))
-
+        info.step_order_sz = Decimal(str("1"))
+        
         # info.base_ccy = data["bc"].lower()
         # info.quote_ccy = data["qc"].lower()
 

@@ -107,6 +107,7 @@ class instInfoData:
     inst_id_local: str = "" # exchange + inst_type + inst_id (unique)
     price_tick: Decimal = 0 # min price decimal
     min_order_sz: Decimal = 0 # min order size
+    step_order_sz: Decimal = 0 # step order size(min add order size)
 
     base_ccy: str = "" # btc-eth, btc is base ccy, spot
     quote_ccy: str = "" # btc-eth, eth is quote ccy, spot
@@ -328,6 +329,8 @@ class sendReturnData:
     gateway_name : str = ""
     exchange_name : str = ""
     account_name: str = ""
+    inst_id: str = ""
+    inst_id_local: str = ""
     ws_id: str = ""
     channel: str = "" # order, batch-orders, cancel-order, cancel-batch-order, amend-order, amend-batch-order
     ord_id: str = ""

@@ -1,7 +1,6 @@
 
 import asyncio
 import aiohttp
-from sympy import N
 import websockets
 import json
 import yaml
@@ -15,7 +14,7 @@ from typing import Dict, List
 from crypto_gateway_python.utilities.utility_time import dt_epoch_to_china_str, dt_epoch_utz_now
 from crypto_rest_python.binance.sync_rest.spot_api import SpotAPI as sync_spot
 from crypto_rest_python.binance.async_rest.async_spot import asyncBinanceSpot as async_spot
-from crypto_rest_python.async_rest_client import RestClient, Response, Request
+from crypto_rest_python.async_rest_client import  Response, Request
 from crypto_gateway_python.data_structure.base_gateway import baseGateway
 from crypto_gateway_python.data_structure.base_data_struct import(
     depthData,
@@ -96,16 +95,16 @@ class binanceGateway(baseGateway):
         self.secretKey = config['secretKey']
         # self.passPhrase = config['passPhrase']
         self.account_name = config['account_name']
-        self.isTest = config['isTest']
-        if self.isTest:
-            # self.websocketPubUrl = WS_PUB_URL_SIMULATION
-            # self.websocketPriUrl = WS_PRI_URL_SIMULATION
-            pass
+        # self.isTest = config['isTest']
+        # if self.isTest:
+        #     # self.websocketPubUrl = WS_PUB_URL_SIMULATION
+        #     # self.websocketPriUrl = WS_PRI_URL_SIMULATION
+        #     pass
         
         self.sync_spot = sync_spot(self.apiKey, self.secretKey)
-        # self.async_spot = async_spot(self.apiKey, self.secretKey, self.loop, self.session)
-        self.async_spot = async_spot(self.apiKey, self.secretKey)
-        self.async_spot.start()
+        self.async_spot = async_spot(self.apiKey, self.secretKey, self.loop, self.session)
+        # self.async_spot = async_spot(self.apiKey, self.secretKey)
+        # self.async_spot.start()
 
         self.load_exchange_info()
     
@@ -1031,23 +1030,25 @@ def local_time():
 def round_float(num):
     return round(float(num), 8)
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
     
-#     gateway = binanceGateway("test")
-#     with open(f"/app/account_config/binance/sub00.yml", "r") as f:
-#         config_file = yaml.load(f, Loader=yaml.FullLoader)
-#     gateway.add_config_account(config_file)
-#     gateway.add_inst_id_needed("LTCBTC", "SPOT")
-#     loop = asyncio.get_event_loop()
+    gateway = binanceGateway("test")
+    with open(f"/home/op/wangyun/account_config/binance/test1.yaml", "r") as f:
+        config_file = yaml.load(f, Loader=yaml.FullLoader)
+    gateway.add_config_account(config_file)
+    gateway.add_inst_id_needed("LTCBTC", "SPOT")
+    loop = asyncio.get_event_loop()
 
-#     tasks = []
+    tasks = []
+    gateway.sync_spot.spot_get_account()
+    # gateway.sync_spot.contract_futures_transfer("USDT", "40000", "1")
     
-#     task = gateway.spot_market()
-#     tasks.append(task)
-#     task = gateway.spot_websocket_with_login()
-#     tasks.append(task)
-#     task = gateway.extend_listen_key()
-#     tasks.append(task)
-#     loop.run_until_complete(asyncio.gather(*tasks))
+    task = gateway.spot_market()
+    tasks.append(task)
+    task = gateway.spot_websocket_with_login()
+    tasks.append(task)
+    task = gateway.extend_listen_key()
+    tasks.append(task)
+    loop.run_until_complete(asyncio.gather(*tasks))
 
-#     loop.close()
+    loop.close()

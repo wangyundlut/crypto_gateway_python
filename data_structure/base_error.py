@@ -14,7 +14,8 @@ class orderError:
     POSTONLYPRICEERROR = "Order would immediately match and take."
     INSETTLEMENT = "In settlement. Your order can’t be placed/withdrew currently."
     SYSTEMEBUSY = "System busy. Please try again later."
-    
+    SYSTEMERROR = "System ERROR. Internal error. Unknow Error"
+
     TIMEOUT = "Timestamp for this request is outside of the recvWindow."
 
 @dataclass

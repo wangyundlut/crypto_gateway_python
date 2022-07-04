@@ -727,7 +727,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     session = loop.run_until_complete(create_session(loop))
     start_event_loop(loop)
-    with open("/home/op/wangyun/account_config/huobi/test1.yaml", "r") as f:
+    with open("/home/op/wangyun/account_config/huobi/spread1.yaml", "r") as f:
         account = yaml.full_load(f)
     # account = load_account_file("huobi/test1")
     gateway = huobiGatewayTradeSpot('test')
@@ -751,9 +751,12 @@ if __name__ == "__main__":
     print(gateway.sync_spot.trade_get_fee(['ethusdt']))
     print(gateway.sync_spot.account_get_asset_valuation("spot"))
     print(gateway.sync_spot.account_get_valuation())
-    gateway.helper_get_account('usdt', 'ethusdt', 'spot')
-    gateway.sync_spot.account_get_balance("spot")
-    # print(gateway.sync_spot.account_post_transfer_usdt_margin("spot", "linear-swap", "usdt", 229, "usdt"))
+    gateway.helper_get_account('usdt', 'btcusdt', 'spot')
+    res = gateway.sync_spot.account_get_balance("spot")
+    for li in res['data']['list']:
+        if Decimal(li['balance']) != Decimal('0'):
+            print(f"{li['currency']} {li['balance']}")
+    # print(gateway.sync_spot.account_post_transfer_usdt_margin("spot", "linear-swap", "usdt", 40000, "usdt"))
     # print(gateway.sync_spot.account_post_transfer_usdt_margin("linear-swap", "spot", "usdt", 500, "usdt"))
     
     result = gateway.sync_spot.trade_get_open_order(symbol='ethusdt')
@@ -774,7 +777,7 @@ if __name__ == "__main__":
     order.side="sell"
     order.px=Decimal("1123")
     order.sz=Decimal("0.01")
-    gateway.send_order(order)
+    # gateway.send_order(order)
     print(f"send order {order}")
     while True:
         time.sleep(100)

@@ -46,6 +46,7 @@ def bn_load_exchange_info(rest=None):
                 info.price_tick = Decimal(filterType["minPrice"])
             if filterType["filterType"] == "LOT_SIZE":
                 info.min_order_sz = Decimal(filterType["minQty"])
+                info.step_order_sz = Decimal(filterType["minQty"])
         # for bn, min order sz is 10 usdt. 
         for inst_type in [instTypeEnum.SPOT, instTypeEnum.MARGINCROSS, instTypeEnum.MARGINISOLATED]:
             info_ = deepcopy(info)
@@ -83,7 +84,8 @@ def bn_load_usdt_margin_exchange_info():
                 info.price_tick = Decimal(filterType["tickSize"])
             if filterType["filterType"] == "LOT_SIZE":
                 info.min_order_sz = round_to(min_order_notional / ticker_price[data["symbol"]], Decimal(filterType["stepSize"]))
-        
+                info.step_order_sz = Decimal(filterType["stepSize"])
+
         info.inst_type = instTypeEnum.USDTM
         info.inst_id = data["symbol"]
         info.inst_id_local = bn_get_inst_id_local(info.inst_id, instTypeEnum.USDTM)
